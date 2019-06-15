@@ -19,8 +19,6 @@ public class MECT extends AnalyticPhantom{
 	 * serialVersion in scheme ddmmyy
 	 */
 	private static final long serialVersionUID = 110619L;
-	//private Cylinder[] innerRods;
-	//private Cylinder[] outerRods;
 
 	@Override
 	public String getBibtexCitation() {
@@ -36,23 +34,30 @@ public class MECT extends AnalyticPhantom{
 
 	@Override
 	public String getName() {
+		// shown in list of projectable phantoms in gui
 		return "Multi Energy CT Phantom";
 	}
 	
 	/**
-	 *   -----------
-	 *  /15 14 7  8  10\
-	 * |14 13  15  9  11|
-	 *  \13 12 11 10 12/
-	 *   ------------
+	 *   -------------
+	 *  /15 27 20 21 10\
+	 * |14 26 1 2 22 11|
+	 *  \13 25 24 23 12/
+	 *   -------------
 	 *   setting rots nummerated as shown above
 	 */
 	public MECT() {
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
+		// create main ellipsiod object with dims 400x300x165 mm
 		Cylinder mainCylinder = new Cylinder(400, 300, 165);
 		MECT.setShape(mainCylinder);
 		add(MECT);
+		/*
+		 * now configure the rods. this default case features bone rods and two
+		 * Polyethylene rods in the center. The real phantom can be equipped with 19
+		 * different materials 
+		*/
 		
 		// set outer rods to bone
 		for(int i = 10; i < 16; i++) {
