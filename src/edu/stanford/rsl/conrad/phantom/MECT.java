@@ -19,6 +19,12 @@ public class MECT extends AnalyticPhantom{
 	 * serialVersion in scheme ddmmyy
 	 */
 	private static final long serialVersionUID = 110619L;
+	private static final double scale_factor = 1;
+	private static final double x_mm = 400; 
+	private static final double y_mm = 300; 
+	private static final double z_mm = 165;
+	private static final double rod_size = 28.5;
+	
 
 	@Override
 	public String getBibtexCitation() {
@@ -50,7 +56,7 @@ public class MECT extends AnalyticPhantom{
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
 		// create main ellipsiod object with dims 400x300x165 mm
-		Cylinder mainCylinder = new Cylinder(400, 300, 165);
+		Cylinder mainCylinder = new Cylinder(x_mm*scale_factor, y_mm*scale_factor, z_mm*scale_factor);
 		MECT.setShape(mainCylinder);
 		add(MECT);
 		/*
@@ -88,7 +94,7 @@ public class MECT extends AnalyticPhantom{
 		PhysicalObject SubObject = new PhysicalObject();
 		SubObject.setMaterial(MaterialsDB.getMaterial(Material));
 		// define the geometry of subobject which is a cylinder
-		Cylinder rod = new Cylinder(28.5, 28.5, 165);
+		Cylinder rod = new Cylinder(rod_size*scale_factor, rod_size*scale_factor, z_mm*scale_factor);
 		// translate based on above defined coding
 		Translation translation = _getTranslationOfIdentNr(rodIdent);
 		rod.applyTransform(translation);
@@ -98,12 +104,12 @@ public class MECT extends AnalyticPhantom{
 	}
 	
 	private static Translation _getTranslationOfIdentNr(int rodIdent) {
-		float radius_mm;
+		double radius_mm;
 		double start_angle = Math.PI/2; // start north
 		
 		if(rodIdent >= 20 && rodIdent <= 27) {
 			// inner rods r = 75mm; ang_increment = pi/4
-			radius_mm = 75f;
+			radius_mm = 75;
 			rodIdent -= 20;
 		}else if(rodIdent >= 10 && rodIdent <= 15) {
 			// outer rods r = 140; ang_increment = pi/4; have to translate between 3rd and 4rd rod
@@ -123,7 +129,7 @@ public class MECT extends AnalyticPhantom{
 		}
 		double dx = Math.cos(start_angle - rodIdent*(Math.PI/4)) * radius_mm;
 		double dy = Math.sin(start_angle - rodIdent*(Math.PI/4)) * radius_mm;
-		Translation ret = new Translation(dx, dy, 0);
+		Translation ret = new Translation(dx*scale_factor, dy*scale_factor, 0);
 		return ret;
 	}
 }
