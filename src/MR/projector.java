@@ -16,11 +16,15 @@ import IceInternal.Time;
 import MR.spectrum_creator;
 
 /**
- * encapsulates all options of projection
+ * encapsulates all options of projection _n indicates added noise _r indicates added rotation _t translation
  * @author rohleder
  */
-enum attenType{
-	MATERIAL, POLY120, POLY80, MONO;
+enum projType{
+	MATERIAL, POLY120, POLY80, 	// noise free, polychromatic spectrum @ 120 or 80kv
+	POLY120n, POLY80n, 			// noisy/rotated/translated polychromatic spectrum @ 120 or 80kv
+	POLY120nr, POLY80nr, POLY120nt, POLY80nt, POLY120rt, POLY80rt,
+	POLY120nrt, POLY80nrt, 
+	MONO; 						// monochromatic (deprecated)
 }
 
 /**
@@ -36,23 +40,43 @@ class projector{
 	static final int LOWER_ENERGY = 81; // [kv] as in Mueller 2018, Fast kV switching
 	static final int HIGHER_ENERGY = 125; // [kv] as in Mueller 2018, Fast kV switching
 	
+	// ZEEGO CONFIGURATION
+	static final double width_mm = 381.92;
+	static final double heigth_mm = 295.68;
+	static final int width_px = 1240; // number of pixels
+	static final int heigth_px = 960;
+	static final double pxX_mm = 0.308;
+	static final double pxY_mm = 0.308;
+	
 	// members
 	public static ParallelProjectionPhantomRenderer phantom_renderer = new ParallelProjectionPhantomRenderer();
 	
 	public static void main(String[] args) {
 		System.out.println("BEGIN TESTING");
 		
+		configure_Zeego();		
+		
+		// inspecting configuration
+		if(DEBUG) inspect_global_conf();
+		
+		configure_Zeego(0.3);
+		
 		// inspecting configuration
 		if(DEBUG) inspect_global_conf();
 		
 		// create phantom
-		AnalyticPhantom phantom = new MECT();
+		//AnalyticPhantom phantom = new MECT();
 		
 		// create projection image in 120 kv
-		Grid3D highEnergyProjections = create_projection(phantom, attenType.POLY120);
+		//Grid3D highEnergyProjections = create_projection(phantom, projType.POLY120);
+		
+		// create projection image in 80 kv
+		//Grid3D lowEnergyProjections = create_projection(phantom, projType.POLY80);
+
 		
 		// visualize projection data
-		showGrid(highEnergyProjections);
+		//showGrid(highEnergyProjections);
+		//showGrid(lowEnergyProjections);
 		
 		
 
@@ -79,7 +103,7 @@ class projector{
 	 * @param t chooses the attenuation model. option listed in enum
 	 * @param energy modulates spectrum in all non-material projections
 	 */
-	public static Grid3D create_projection(AnalyticPhantom phantom, attenType t) {
+	public static Grid3D create_projection(AnalyticPhantom phantom, projType t) {
 		long projStart = Time.currentMonotonicTimeMillis();
 		// prerequisites
 		Configuration.loadConfiguration();
@@ -109,12 +133,13 @@ class projector{
 		}
 		return result;
 	}
+	
 	/**
 	 * 
 	 * @param t chooses between MaterialPathLengthDetector or PolyChromaticDetector with either 80 or 120 kv spectrum (see enum for options)
 	 * @return fully configured detector
 	 */
-	private static XRayDetector createDetector(attenType t) {
+	private static XRayDetector createDetector(projType t) {
 		long dectStart = Time.currentMonotonicTimeMillis();
 		XRayDetector dect;
 		switch(t) {
@@ -124,6 +149,7 @@ class projector{
 		    break;
 		  case POLY80:
 			dect = new PolychromaticDetectorWithNoise();
+			dect.setNameString("PolyChromaticDetector @ 80kv");
 			//TODO set PolyChromaticSpectrum (maybe just load it.. generation takes long)
 			PolychromaticAbsorptionModel mo80 = spectrum_creator.configureAbsorbtionModel(t);
 			dect.setModel(mo80);
@@ -131,7 +157,7 @@ class projector{
 		    break;
 		  case POLY120:
 			dect = new PolychromaticDetectorWithNoise();
-			//TODO set PolyChromaticSpectrum maybe set configured to true
+			dect.setNameString("PolyChromaticDetector @ 120kv");
 			PolychromaticAbsorptionModel mo120 = spectrum_creator.configureAbsorbtionModel(t);
 			dect.setModel(mo120);		
 			if(DEBUG) System.out.println("configured detector poly120"); 
@@ -158,8 +184,9 @@ class projector{
 		int pxX = conf.getGeometry().getDetectorWidth();
 		double h = pxY * conf.getGeometry().getPixelDimensionY();
 		double w = pxX * conf.getGeometry().getPixelDimensionX();
-		System.out.println("current detector:\n\tname:\t\t" + conf.getDetector());
+		System.out.println("current detector and spectrum:\n\tname:\t\t" + conf.getDetector());
 		System.out.println("\tdims (h, w):\t" + pxY + ", " + pxX + " [px]");
+		System.out.println("\tpixelsixes (y, x):\t" + conf.getGeometry().getPixelDimensionY() + ", " + conf.getGeometry().getPixelDimensionX() + " [mm]");
 		System.out.println("\tsize (h, w):\t" + h + ", " + w + " [cm]");
 		System.out.println("current X-Ray tube:\n\tvoltage:\t" + conf.getVoltage());
 		System.out.println("\tcutOffFreq:\t" + conf.getCutOffFrequency());
@@ -179,4 +206,85 @@ class projector{
 														+ geo.getVoxelSpacingX() + " [cm]");	
 
 	}
+	/**
+	 * set config to real parameters without downsampling
+	 */
+	public static void configure_Zeego() {
+		
+		// load global conf
+		Configuration.loadConfiguration();
+		Configuration conf = Configuration.getGlobalConfiguration();
+		Trajectory geometry = conf.getGeometry();
+		// set params
+		geometry.setDetectorHeight(heigth_px);
+		geometry.setDetectorWidth(width_px);
+		geometry.setPixelDimensionX(pxX_mm);
+		geometry.setPixelDimensionY(pxY_mm);
+		// set global conf
+		conf.setGeometry(geometry);
+		Configuration.setGlobalConfiguration(conf);
+		if(DEBUG) System.out.println("setting resolutiont to 100% zeego standard");
+	}
+	/**
+	 * zeego detector has 1240x960 resolution. physical size is 381.92x295.68.
+	 * @param percentage [0.1, 1] downsample percentage of pixels remaining (0.9 = 90% of pixels remain)
+	 */
+	public static void configure_Zeego(double percentage) {
+		assert (percentage <= 1 && percentage >= 0.1);
+		// real zeego parameters
+		int width_px = 1240; // number of pixels
+		int heigth_px = 960;
+		int num_px = width_px*heigth_px;
+		
+		double ratio = ((double)heigth_px/(double)width_px);
+		double pxX_mm = 0.308;
+		double pxY_mm = 0.308;
+		double width_mm = width_px*pxX_mm;
+		double heigth_mm = heigth_px*pxY_mm;
+		
+		// calculate new parameters
+		width_px = (int)(Math.round(Math.sqrt(percentage) * width_px));
+		heigth_px = (int) Math.round(ratio * width_px);
+				
+		double pxX_mm_scaled = width_mm / width_px;
+		double pxy_mm_scaled = heigth_mm / heigth_px;
+
+		if(DEBUG) System.out.println("scaling to " + ((width_px*heigth_px)/num_px)*100 + "(" + percentage*100 + ")");
+	
+		// load global conf
+		Configuration.loadConfiguration();
+		Configuration conf = Configuration.getGlobalConfiguration();
+		Trajectory geometry = conf.getGeometry();
+		geometry.setDetectorHeight(690);
+		
+		// set params
+		geometry.setDetectorHeight(heigth_px);
+		geometry.setDetectorWidth(width_px);
+		geometry.setPixelDimensionX(pxX_mm_scaled);
+		geometry.setPixelDimensionY(pxy_mm_scaled);
+		
+		conf.setGeometry(geometry);
+		Configuration.setGlobalConfiguration(conf);
+	}
+	
+	public static String encodeSetting(projType t) {
+		String s = "";
+		return s;
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

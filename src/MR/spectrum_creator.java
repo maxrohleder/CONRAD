@@ -9,7 +9,7 @@ import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
  *
  */
 class spectrum_creator{
-	public static PolychromaticXRaySpectrum create_spectrum(attenType t) {
+	public static PolychromaticXRaySpectrum create_spectrum(projType t) {
 		
 		PolychromaticXRaySpectrum s;
 		switch(t) {
@@ -31,7 +31,7 @@ class spectrum_creator{
 	 * @param t
 	 * @return Absorption Model fittet to Zeego
 	 */
-	public static PolychromaticAbsorptionModel configureAbsorbtionModel(attenType t) {
+	public static PolychromaticAbsorptionModel configureAbsorbtionModel(projType t) {
 
 		PolychromaticAbsorptionModel mo = new PolychromaticAbsorptionModel();
 		PolychromaticXRaySpectrum  spectrum = spectrum_creator.create_spectrum(t);
