@@ -19,23 +19,23 @@ public class MECT extends AnalyticPhantom{
 	 * serialVersion in scheme ddmmyy
 	 */
 	private static final long serialVersionUID = 110619L;
-	private static final double scale_factor = 1;
+	private double scale_factor = 1;
 	private static final double x_mm = 400; 
 	private static final double y_mm = 300; 
 	private static final double z_mm = 165;
-	private static final double rod_size = 28.5;
+	private static final double rod_size_mm = 28.5;
 	
 
 	@Override
 	public String getBibtexCitation() {
 		// TODO Auto-generated method stub
-		return null;
+		return "GAMMEX Model 1472";
 	}
 
 	@Override
 	public String getMedlineCitation() {
 		// TODO Auto-generated method stub
-		return null;
+		return "GAMMEX Model 1472";
 	}
 
 	@Override
@@ -94,7 +94,7 @@ public class MECT extends AnalyticPhantom{
 		PhysicalObject SubObject = new PhysicalObject();
 		SubObject.setMaterial(MaterialsDB.getMaterial(Material));
 		// define the geometry of subobject which is a cylinder
-		Cylinder rod = new Cylinder(rod_size*scale_factor, rod_size*scale_factor, z_mm*scale_factor);
+		Cylinder rod = new Cylinder(rod_size_mm*scale_factor, rod_size_mm*scale_factor, z_mm*scale_factor);
 		// translate based on above defined coding
 		Translation translation = _getTranslationOfIdentNr(rodIdent);
 		rod.applyTransform(translation);
@@ -103,7 +103,7 @@ public class MECT extends AnalyticPhantom{
 		return ret;
 	}
 	
-	private static Translation _getTranslationOfIdentNr(int rodIdent) {
+	private Translation _getTranslationOfIdentNr(int rodIdent) {
 		double radius_mm;
 		double start_angle = Math.PI/2; // start north
 		
@@ -131,6 +131,10 @@ public class MECT extends AnalyticPhantom{
 		double dy = Math.sin(start_angle - rodIdent*(Math.PI/4)) * radius_mm;
 		Translation ret = new Translation(dx*scale_factor, dy*scale_factor, 0);
 		return ret;
+	}
+	
+	public void set_scale(double scale) {
+		this.scale_factor = scale;
 	}
 }
 
