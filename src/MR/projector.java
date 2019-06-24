@@ -15,17 +15,6 @@ import ij.measure.Calibration;
 import IceInternal.Time;
 import MR.spectrum_creator;
 
-/**
- * encapsulates all options of projection _n indicates added noise _r indicates added rotation _t translation
- * @author rohleder
- */
-enum projType{
-	MATERIAL, POLY120, POLY80, 	// noise free, polychromatic spectrum @ 120 or 80kv
-	POLY120n, POLY80n, 			// noisy/rotated/translated polychromatic spectrum @ 120 or 80kv
-	POLY120nr, POLY80nr, POLY120nt, POLY80nt, POLY120rt, POLY80rt,
-	POLY120nrt, POLY80nrt, 
-	MONO; 						// monochromatic (deprecated)
-}
 
 /**
  * Static class.
@@ -34,12 +23,11 @@ enum projType{
  *
  */
 class projector{
+	
 	// CONSTANTS HYPERPARAMETERS
 	static final boolean DEBUG = true;
-	static final int NUMBER_OF_MATERIALS = 2; // bone and water or iodine and bone
-	static final int LOWER_ENERGY = 81; // [kv] as in Mueller 2018, Fast kV switching
-	static final int HIGHER_ENERGY = 125; // [kv] as in Mueller 2018, Fast kV switching
-	
+	static boolean is_configured = false;
+
 	// ZEEGO CONFIGURATION
 	static final double width_mm = 381.92;
 	static final double heigth_mm = 295.68;
@@ -54,28 +42,24 @@ class projector{
 	public static void main(String[] args) {
 		System.out.println("BEGIN TESTING");
 		
-		configure_Zeego();		
-		
-		// inspecting configuration
-		if(DEBUG) inspect_global_conf();
-		
-		configure_Zeego(0.3);
+		// set detector to 8% of the resolution as normal
+		configure_Zeego(0.08);
 		
 		// inspecting configuration
 		if(DEBUG) inspect_global_conf();
 		
 		// create phantom
-		//AnalyticPhantom phantom = new MECT();
+		AnalyticPhantom phantom = new MECT();
 		
 		// create projection image in 120 kv
-		//Grid3D highEnergyProjections = create_projection(phantom, projType.POLY120);
+		Grid3D highEnergyProjections = create_projection(phantom, projType.POLY120);
 		
 		// create projection image in 80 kv
 		//Grid3D lowEnergyProjections = create_projection(phantom, projType.POLY80);
 
 		
 		// visualize projection data
-		//showGrid(highEnergyProjections);
+		showGrid(highEnergyProjections, "Poly120_test");
 		//showGrid(lowEnergyProjections);
 		
 		
@@ -84,11 +68,29 @@ class projector{
 	}
 	
 	/**
-	 * helper visualizing a Grid3D
-	 * @param highEnergyImg
+	 * generate one sample set of two training and one target image
+	 * @param phantom	Analytic phantom to project
+	 * @param t			type of desired projection
+	 * @param scale		scale parameter in range from 0.01 to 1 (default 0.08)
+	 * @return			three images in Grid3D representation
 	 */
-	private static void showGrid(Grid3D highEnergyImg) {
-		ImagePlus image = ImageUtil.wrapGrid3D(highEnergyImg, "POLY120");
+	public static Grid3D[] generate_sample(AnalyticPhantom phantom, projType[] t, double scale) {
+		assert(t.length == 3);
+		if (!is_configured) configure_Zeego(scale);
+		// creating the projections
+		Grid3D[] sample_set = new Grid3D[3];
+		sample_set[0] = create_projection(phantom, t[0]);
+		sample_set[1] = create_projection(phantom, t[1]);
+		sample_set[2] = create_projection(phantom, t[2]);
+		return sample_set;
+	}
+	
+	/**
+	 * helper visualizing a Grid3D
+	 * @param img
+	 */
+	public static void showGrid(Grid3D img, String name) {
+		ImagePlus image = ImageUtil.wrapGrid3D(img, name);
 		Calibration cal = image.getCalibration();
 		cal.xOrigin = Configuration.getGlobalConfiguration().getGeometry().getOriginInPixelsX();
 		cal.yOrigin = Configuration.getGlobalConfiguration().getGeometry().getOriginInPixelsY();
@@ -135,7 +137,7 @@ class projector{
 	}
 	
 	/**
-	 * 
+	 * configures a detector and attenuation type(which will influence the outcome image)
 	 * @param t chooses between MaterialPathLengthDetector or PolyChromaticDetector with either 80 or 120 kv spectrum (see enum for options)
 	 * @return fully configured detector
 	 */
@@ -144,6 +146,7 @@ class projector{
 		XRayDetector dect;
 		switch(t) {
 		  case MATERIAL:
+			// NOT IMPLEMENTED PROPERLY
 			dect = new MaterialPathLengthDetector();
 			if(DEBUG) System.out.println("configured detector mat"); 
 		    break;
@@ -163,6 +166,7 @@ class projector{
 			if(DEBUG) System.out.println("configured detector poly120"); 
 			break;
 		  default:
+			// NOT IMPLEMENTED PROPERLY
 			dect = new SimpleMonochromaticDetector();
 			if(DEBUG) System.out.println("SOMETHING wrong monochromatic wasnt planned to work"); 
 		}
@@ -232,24 +236,20 @@ class projector{
 	public static void configure_Zeego(double percentage) {
 		assert (percentage <= 1 && percentage >= 0.1);
 		// real zeego parameters
-		int width_px = 1240; // number of pixels
-		int heigth_px = 960;
-		int num_px = width_px*heigth_px;
+		int num_px = projector.width_px*projector.heigth_px;
 		
-		double ratio = ((double)heigth_px/(double)width_px);
-		double pxX_mm = 0.308;
-		double pxY_mm = 0.308;
-		double width_mm = width_px*pxX_mm;
-		double heigth_mm = heigth_px*pxY_mm;
+		double ratio = ((double)projector.heigth_px/(double)projector.width_px);
+		double width_mm = projector.width_px*projector.pxX_mm;
+		double heigth_mm = projector.heigth_px*projector.pxY_mm;
 		
 		// calculate new parameters
-		width_px = (int)(Math.round(Math.sqrt(percentage) * width_px));
-		heigth_px = (int) Math.round(ratio * width_px);
+		int width_px_new = (int)(Math.round(Math.sqrt(percentage) * projector.width_px));
+		int heigth_px_new = (int) Math.round(ratio * width_px_new);
 				
-		double pxX_mm_scaled = width_mm / width_px;
-		double pxy_mm_scaled = heigth_mm / heigth_px;
+		double pxX_mm_scaled = width_mm / width_px_new;
+		double pxy_mm_scaled = heigth_mm / heigth_px_new;
 
-		if(DEBUG) System.out.println("scaling to " + ((width_px*heigth_px)/num_px)*100 + "(" + percentage*100 + ")");
+		if(DEBUG) System.out.println("scaling to " + (((double)width_px_new*(double)heigth_px_new)/num_px)*100 + "% (target: " + percentage*100 + "%)");
 	
 		// load global conf
 		Configuration.loadConfiguration();
@@ -258,8 +258,8 @@ class projector{
 		geometry.setDetectorHeight(690);
 		
 		// set params
-		geometry.setDetectorHeight(heigth_px);
-		geometry.setDetectorWidth(width_px);
+		geometry.setDetectorHeight(heigth_px_new);
+		geometry.setDetectorWidth(width_px_new);
 		geometry.setPixelDimensionX(pxX_mm_scaled);
 		geometry.setPixelDimensionY(pxy_mm_scaled);
 		
@@ -269,6 +269,65 @@ class projector{
 	
 	public static String encodeSetting(projType t) {
 		String s = "";
+		switch(t) {
+		case MATERIAL:
+			s = "mat_";
+			break;
+		case MATERIALn:
+			s = "mat_n";
+			break;
+		case MATERIALnr:
+			s = "mat_nr";
+			break;
+		case MATERIALnrt:
+			s = "mat_nrt";
+			break;
+		case MATERIALnt:
+			s = "mat_nt";
+			break;
+		case MATERIALrt:
+			s = "mat_rt";
+			break;
+		case POLY120:
+			s = "poly120_";
+			break;
+		case POLY120n:
+			s = "poly120_n";
+			break;
+		case POLY120nr:
+			s = "poly120_nr";
+			break;
+		case POLY120nrt:
+			s = "poly120_nrt";
+			break;
+		case POLY120nt:
+			s = "poly120_nt";
+			break;
+		case POLY120rt:
+			s = "poly120_rt";
+			break;
+		case POLY80:
+			s = "poly80_";
+			break;
+		case POLY80n:
+			s = "poly80_n";
+			break;
+		case POLY80nr:
+			s = "poly80_nr";
+			break;
+		case POLY80nrt:
+			s = "poly80_nrt";
+			break;
+		case POLY80nt:
+			s = "poly80_nt";
+			break;
+		case POLY80rt:
+			s = "poly80_rt";
+			break;
+		default:
+			s = "UNIDENTIFIED";
+			break;
+		}
 		return s;
 	}
 }
