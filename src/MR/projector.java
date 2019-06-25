@@ -118,7 +118,6 @@ class projector{
 		// create a phantom at 80 and 120 kv
 		Grid3D result = null;
 		try {
-			// try to circumvent that : phantom_renderer.configure();
 			phantom_renderer.configure(phantom, dect);
 			
 			if(DEBUG) System.out.println("BEGIN RENDERING");
@@ -144,31 +143,24 @@ class projector{
 	private static XRayDetector createDetector(projType t) {
 		long dectStart = Time.currentMonotonicTimeMillis();
 		XRayDetector dect;
-		switch(t) {
-		  case MATERIAL:
-			// NOT IMPLEMENTED PROPERLY
+		if( t == projType.MATERIAL) {
 			dect = new MaterialPathLengthDetector();
+			// TODO set number of Materials
 			if(DEBUG) System.out.println("configured detector mat"); 
-		    break;
-		  case POLY80:
-			dect = new PolychromaticDetectorWithNoise();
-			dect.setNameString("PolyChromaticDetector @ 80kv");
-			//TODO set PolyChromaticSpectrum (maybe just load it.. generation takes long)
-			PolychromaticAbsorptionModel mo80 = spectrum_creator.configureAbsorbtionModel(t);
-			dect.setModel(mo80);
-			if(DEBUG) System.out.println("configured detector poly80"); 
-		    break;
-		  case POLY120:
-			dect = new PolychromaticDetectorWithNoise();
-			dect.setNameString("PolyChromaticDetector @ 120kv");
-			PolychromaticAbsorptionModel mo120 = spectrum_creator.configureAbsorbtionModel(t);
-			dect.setModel(mo120);		
-			if(DEBUG) System.out.println("configured detector poly120"); 
-			break;
-		  default:
-			// NOT IMPLEMENTED PROPERLY
-			dect = new SimpleMonochromaticDetector();
-			if(DEBUG) System.out.println("SOMETHING wrong monochromatic wasnt planned to work"); 
+		}
+		else {
+			if(	t == projType.POLY80 || t == projType.POLY120) {
+				dect = new SimplePolychromaticDetector();
+				dect.setNameString("Simple PolyChromaticDetector");
+				if(DEBUG) System.out.println("configured simple detector " + t); 
+			}
+			else {
+				dect = new PolychromaticDetectorWithNoise();
+				dect.setNameString("Noisy PolyChromaticDetector");
+				if(DEBUG) System.out.println("configured noisy detector " + t); 
+			}
+			PolychromaticAbsorptionModel mo = spectrum_creator.configureAbsorbtionModel(t);
+			dect.setModel(mo);
 		}
 		if(DEBUG) {
 			System.out.println("Detector Creation : " + (Time.currentMonotonicTimeMillis() - dectStart) + "ms");
@@ -271,58 +263,19 @@ class projector{
 		String s = "";
 		switch(t) {
 		case MATERIAL:
-			s = "mat_";
-			break;
-		case MATERIALn:
-			s = "mat_n";
-			break;
-		case MATERIALnr:
-			s = "mat_nr";
-			break;
-		case MATERIALnrt:
-			s = "mat_nrt";
-			break;
-		case MATERIALnt:
-			s = "mat_nt";
-			break;
-		case MATERIALrt:
-			s = "mat_rt";
+			s = "mat";
 			break;
 		case POLY120:
-			s = "poly120_";
+			s = "poly120";
 			break;
 		case POLY120n:
 			s = "poly120_n";
 			break;
-		case POLY120nr:
-			s = "poly120_nr";
-			break;
-		case POLY120nrt:
-			s = "poly120_nrt";
-			break;
-		case POLY120nt:
-			s = "poly120_nt";
-			break;
-		case POLY120rt:
-			s = "poly120_rt";
-			break;
 		case POLY80:
-			s = "poly80_";
+			s = "poly80";
 			break;
 		case POLY80n:
 			s = "poly80_n";
-			break;
-		case POLY80nr:
-			s = "poly80_nr";
-			break;
-		case POLY80nrt:
-			s = "poly80_nrt";
-			break;
-		case POLY80nt:
-			s = "poly80_nt";
-			break;
-		case POLY80rt:
-			s = "poly80_rt";
 			break;
 		default:
 			s = "UNIDENTIFIED";

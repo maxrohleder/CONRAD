@@ -1,15 +1,28 @@
 package MR;
 
+import java.util.concurrent.TimeUnit;
+
+import IceInternal.Time;
 import edu.stanford.rsl.conrad.data.numeric.Grid3D;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 
 class data_generator{
 	public static String DATA_FOLDER = "I:\\bachelor\\trainings_data"; //TODO define a location
-	public static final int serial_number = 0;
-	public static double scale = 0.08;
+	public static int serial_number = 0;
+	public static double scale = 0.008;
+	public static int target_number = 10;
 	
-	public static void main(String[] args) {
-
+	public static void main(String[] args) throws InterruptedException {
+		System.out.println("STARTING GENERATION OF " + target_number + " SAMPLES");
+		long starttime = Time.currentMonotonicTimeMillis();
+		double num_mins;
+		for (int i = 0; i < 10; i++) {
+			generate_sample(false, true);
+			serial_number++;
+			num_mins = ((double)(Time.currentMonotonicTimeMillis() - starttime))/60000;
+			System.out.println("generated sample " + i + "/" + target_number + " (took " + String.format("%.2f", num_mins) + "min total)");
+			TimeUnit.SECONDS.sleep(1);
+		}
 	}
 	
 	public static void generate_sample(boolean save, boolean show) {
