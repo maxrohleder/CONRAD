@@ -68,24 +68,6 @@ class projector{
 	}
 	
 	/**
-	 * generate one sample set of two training and one target image
-	 * @param phantom	Analytic phantom to project
-	 * @param t			type of desired projection
-	 * @param scale		scale parameter in range from 0.01 to 1 (default 0.08)
-	 * @return			three images in Grid3D representation
-	 */
-	public static Grid3D[] generate_sample(AnalyticPhantom phantom, projType[] t, double scale) {
-		assert(t.length == 3);
-		if (!is_configured) configure_Zeego(scale);
-		// creating the projections
-		Grid3D[] sample_set = new Grid3D[3];
-		sample_set[0] = create_projection(phantom, t[0]);
-		sample_set[1] = create_projection(phantom, t[1]);
-		sample_set[2] = create_projection(phantom, t[2]);
-		return sample_set;
-	}
-	
-	/**
 	 * helper visualizing a Grid3D
 	 * @param img
 	 */

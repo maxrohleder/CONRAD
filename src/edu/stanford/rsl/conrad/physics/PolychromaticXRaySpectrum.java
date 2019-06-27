@@ -92,6 +92,7 @@ public class PolychromaticXRaySpectrum {
 		this.peakVoltage = peakVoltage;
 		this.timeCurrentProduct = timeCurrentProduct;
 	}
+	
 
 	/**
 	 * Constructor to create an object of an already known spectrum
