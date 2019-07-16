@@ -339,6 +339,7 @@ public class OpenCLProjectionPhantomRenderer extends StreamingPhantomRenderer {
 
 		CLContext context = OpenCLUtil.createContext();
 		CLDevice device = context.getMaxFlopsDevice();
+		System.out.println("opencl device used: " + device.getName());
 
 		configure(phantom, context, device, true);
 

@@ -5,6 +5,9 @@ import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.detector.MaterialPathLengthDetector;
 import edu.stanford.rsl.conrad.physics.detector.PolychromaticDetectorWithNoise;
 import edu.stanford.rsl.conrad.physics.detector.SimplePolychromaticDetector;
+import edu.stanford.rsl.conrad.utils.VisualizationUtil;
+import ij.ImageJ;
+import ij.gui.Plot;
 
 /**
  * helper class to generate different spectra or entire models. POLY120 and POLY80 are tailored to Zeego setup in 06/2019
@@ -13,7 +16,6 @@ import edu.stanford.rsl.conrad.physics.detector.SimplePolychromaticDetector;
  */
 class spectrum_creator{
 	// CONSTANTS HYPERPARAMETERS
-	static final boolean DEBUG = true;
 	static final int NUMBER_OF_MATERIALS = 2; // bone and water or iodine and bone
 	static final int LOWER_ENERGY = 80; // [kv] as in Mueller 2018, Fast kV switching
 	static final int HIGHER_ENERGY = 120; // [kv] as in Mueller 2018, Fast kV switching
@@ -52,6 +54,43 @@ class spectrum_creator{
 		PolychromaticXRaySpectrum  spectrum = spectrum_creator.create_zeego_spectrum(t);
 		mo.setInputSpectrum(spectrum);
 		return mo;
+	}
+	
+	/**
+	 * creates plot of PolychromaticXRaySpectrum
+	 * @param p PolychromaticXRaySpectrum to visualize
+	 * @param name
+	 */
+	public static void vizualizeSpectrum(PolychromaticXRaySpectrum spectra[], String name[]) {
+		double max_value = -1;
+		int min = (int) spectra[0].getMin();
+		int max = (int) spectra[0].getMax();
+		int delta = (int) spectra[0].getDelta();
+		double[][] values = new double[spectra.length][(max-min)/delta];
+		
+		for (int i = 0; i < spectra.length; i++) {
+			PolychromaticXRaySpectrum p = spectra[i];
+			
+			int counter = 0;
+			for (int j = (int) p.getMin(); j < (int) p.getMax(); j += p.getDelta()) {
+				values[i][counter] = p.getIntensity(j);
+				max_value = (max_value>values[i][counter]) ? max_value : values[i][counter];
+				counter++;
+			}
+		}
+		new ImageJ();
+		for (int i = 0; i < spectra.length; i++) {
+			Plot spectrum = VisualizationUtil.createPlot(name[i], values[i]);
+			// TODO set same yaxis scale
+			//VisualizationUtil.createPlot(ybar, values[i], title, xLabel, yLabel)
+			//spectrum.y
+			spectrum.show();
+		}
+	}
+	
+	public static void main(String []args) {
+		vizualizeSpectrum(new PolychromaticXRaySpectrum[] {create_zeego_spectrum(projType.POLY120n), 
+			create_zeego_spectrum(projType.POLY80n)}, new String[] {"POLY120n", "POLY80n"});
 	}
 }
 

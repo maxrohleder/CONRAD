@@ -1,7 +1,10 @@
 package MR;
 
 import edu.stanford.rsl.conrad.data.numeric.Grid3D;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.PointND;
 import edu.stanford.rsl.conrad.geometry.trajectories.Trajectory;
+import edu.stanford.rsl.conrad.opencl.OpenCLMaterialPathLengthPhantomRenderer;
+import edu.stanford.rsl.conrad.opencl.OpenCLProjectionPhantomRenderer;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 import edu.stanford.rsl.conrad.phantom.MECT;
 import edu.stanford.rsl.conrad.phantom.renderer.ParallelProjectionPhantomRenderer;
@@ -24,9 +27,10 @@ import MR.spectrum_creator;
  */
 class projector{
 	
-	// CONSTANTS HYPERPARAMETERS
+	// CONSTANT HYPERPARAMETERS
 	static final boolean DEBUG = true;
 	static boolean is_configured = false;
+	static final int number_of_projections = 200;
 
 	// ZEEGO CONFIGURATION
 	static final double width_mm = 381.92;
@@ -36,30 +40,59 @@ class projector{
 	static final double pxX_mm = 0.308;
 	static final double pxY_mm = 0.308;
 	
-	// members
-	public static ParallelProjectionPhantomRenderer phantom_renderer = new ParallelProjectionPhantomRenderer();
+	// ZEEGO CONFIGURATION downsampled to 1/4
+	static final int width_px_s = 310; // number of pixels
+	static final int heigth_px_s = 240;
+	static final double pxX_mm_s = width_mm/width_px_s;
+	static final double pxY_mm_s = heigth_mm/heigth_px_s;
+	
+	// this objects renderer 
+	projType prot;
+	boolean useGPU;
+	public ParallelProjectionPhantomRenderer parrallel_cpu_renderer;
+	public OpenCLMaterialPathLengthPhantomRenderer gpu_mat_renderer;
+	public OpenCLProjectionPhantomRenderer gpu_renderer;
+	private static PhantomRenderer phantom_renderer; // motherclass of all renderers
+	
+	public projector(boolean use_gpu, projType pro) {
+		this.prot = pro;
+		this.useGPU = use_gpu;
+		if(use_gpu && pro == projType.MATERIAL) {
+			// use opencl material renderer
+			System.err.println("[projector] not implemented yet");
+			System.exit(0);
+		} else if(use_gpu && pro != projType.MATERIAL){
+			// use the opencl projector
+			Configuration.loadConfiguration();
+			this.gpu_renderer = new OpenCLProjectionPhantomRenderer();
+		} else if(!use_gpu && pro == projType.MATERIAL){
+			// use Material Path Length renderer
+			System.err.println("[projector] not implemented yet");
+			System.exit(0);
+		} else {
+			// use parrallel renderer
+			parrallel_cpu_renderer = new ParallelProjectionPhantomRenderer();
+		}
+		//if(cnfg.DEBUG) System.out.println("using " + parrallel_cpu_renderer + gpu_mat_renderer + gpu_renderer);
+	}
 	
 	public static void main(String[] args) {
 		System.out.println("BEGIN TESTING");
 		
-		// set detector to 8% of the resolution as normal
-		configure_Zeego(0.08);
-		
-		// inspecting configuration
-		if(DEBUG) inspect_global_conf();
-		
-		// create phantom
+		// create phantom and renderer
 		AnalyticPhantom phantom = new MECT();
-		
-		// create projection image in 120 kv
-		Grid3D highEnergyProjections = create_projection(phantom, projType.POLY120);
-		
-		// create projection image in 80 kv
-		//Grid3D lowEnergyProjections = create_projection(phantom, projType.POLY80);
+		projector cpu_renderer = new projector(true, projType.POLY120);
+			
+		configure_Zeego(width_px, heigth_px, number_of_projections, phantom);
+		if(DEBUG) inspect_global_conf();
+
+		// create cpu projection image in 120 kv
+		Grid3D highEnergyProjections = cpu_renderer.create_projection(phantom);
+		if(DEBUG) inspect_global_conf();
 
 		
 		// visualize projection data
-		showGrid(highEnergyProjections, "Poly120_test");
+		helpers.showGrid(highEnergyProjections, "Poly120_test");
 		//showGrid(lowEnergyProjections);
 		
 		
@@ -68,48 +101,47 @@ class projector{
 	}
 	
 	/**
-	 * helper visualizing a Grid3D
-	 * @param img
-	 */
-	public static void showGrid(Grid3D img, String name) {
-		ImagePlus image = ImageUtil.wrapGrid3D(img, name);
-		Calibration cal = image.getCalibration();
-		cal.xOrigin = Configuration.getGlobalConfiguration().getGeometry().getOriginInPixelsX();
-		cal.yOrigin = Configuration.getGlobalConfiguration().getGeometry().getOriginInPixelsY();
-		cal.zOrigin = Configuration.getGlobalConfiguration().getGeometry().getOriginInPixelsZ();
-		cal.pixelWidth = Configuration.getGlobalConfiguration().getGeometry().getVoxelSpacingX();
-		cal.pixelHeight = Configuration.getGlobalConfiguration().getGeometry().getVoxelSpacingY();
-		cal.pixelDepth = Configuration.getGlobalConfiguration().getGeometry().getVoxelSpacingZ();
-		image.show();
-	}
-	/**
 	 * creates projection domain images 
 	 * @param t chooses the attenuation model. option listed in enum
 	 * @param energy modulates spectrum in all non-material projections
 	 */
-	public static Grid3D create_projection(AnalyticPhantom phantom, projType t) {
+	public Grid3D create_projection(AnalyticPhantom phantom) {
+		Grid3D result = null;
 		long projStart = Time.currentMonotonicTimeMillis();
 		// prerequisites
 		Configuration.loadConfiguration();
 		Configuration conf = Configuration.getGlobalConfiguration();
 		
-		// set the detector type
-		XRayDetector dect = createDetector(t);
-		conf.setDetector(dect);
-		
-		// create a phantom at 80 and 120 kv
-		Grid3D result = null;
-		try {
-			phantom_renderer.configure(phantom, dect);
+		if(this.useGPU && this.prot != projType.MATERIAL) {
+			// load the phantom
+			this.gpu_renderer.setPhantom(phantom);
+			try {
+				// now select decive and greate opencl context
+				this.gpu_renderer.configure();
+				// computation (has some output per default)
+				result = PhantomRenderer.generateProjections(this.gpu_renderer);
+			} catch (Exception e) {
+				// oops
+				e.printStackTrace();
+			}
+		} else if(!this.useGPU && this.prot != projType.MATERIAL) {
+			// set the detector type
+			XRayDetector dect = createDetector(this.prot);
+			conf.setDetector(dect);
 			
-			if(DEBUG) System.out.println("BEGIN RENDERING");
-			result = PhantomRenderer.generateProjections(phantom_renderer);	
-			if(DEBUG) System.out.println("END RENDERING");
-
-		} catch (Exception e) {
-			// could come from phantom_renderer.configure()
-			e.printStackTrace();
-			System.exit(1);
+			// create a phantom at 80 and 120 kv
+			try {
+				parrallel_cpu_renderer.configure(phantom, dect);
+				
+				if(DEBUG) System.out.println("BEGIN RENDERING");
+				result = PhantomRenderer.generateProjections(this.parrallel_cpu_renderer);	
+				if(DEBUG) System.out.println("END RENDERING");
+	
+			} catch (Exception e) {
+				// could come from phantom_renderer.configure()
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
 		if(DEBUG) {
 			System.out.println("projecting took " + (Time.currentMonotonicTimeMillis() - projStart) / 1000+ "s");
@@ -164,13 +196,15 @@ class projector{
 		double w = pxX * conf.getGeometry().getPixelDimensionX();
 		System.out.println("current detector and spectrum:\n\tname:\t\t" + conf.getDetector());
 		System.out.println("\tdims (h, w):\t" + pxY + ", " + pxX + " [px]");
-		System.out.println("\tpixelsixes (y, x):\t" + conf.getGeometry().getPixelDimensionY() + ", " + conf.getGeometry().getPixelDimensionX() + " [mm]");
+		System.out.println("\tpixelsizes (y, x):\t" + conf.getGeometry().getPixelDimensionY() + ", " + conf.getGeometry().getPixelDimensionX() + " [mm]");
 		System.out.println("\tsize (h, w):\t" + h + ", " + w + " [cm]");
 		System.out.println("current X-Ray tube:\n\tvoltage:\t" + conf.getVoltage());
 		System.out.println("\tcutOffFreq:\t" + conf.getCutOffFrequency());
 		// geometrical circumstances
 		Trajectory geo = conf.getGeometry();
 		System.out.print("geometrical attributes:\n");
+		System.out.println("\torigin (x, y, z):\t" + conf.getGeometry().getOriginX() + ", " + conf.getGeometry().getOriginY() + ", " +  conf.getGeometry().getOriginZ() + "[mm]");
+		System.out.println("\torigin px (x, y, z):\t" + conf.getGeometry().getOriginInPixelsX() + ", " + conf.getGeometry().getOriginInPixelsY() + ", " +  conf.getGeometry().getOriginInPixelsZ()+ "[px]");
 		System.out.println("\tfocal length:\t" + geo.getSourceToDetectorDistance()+ "[cm]");
 		System.out.println("\tincrement:\t" + geo.getAverageAngularIncrement()+ "[rad]");
 		// reconstruction parameters
@@ -188,21 +222,79 @@ class projector{
 	 * set config to real parameters without downsampling
 	 */
 	public static void configure_Zeego() {
-		
+		// calculate pixel dimensions to match physical zeego size
+		double pxX_mm_scaled = projector.width_mm / width_px_s;
+		double pxy_mm_scaled = projector.heigth_mm / heigth_px_s;
 		// load global conf
 		Configuration.loadConfiguration();
 		Configuration conf = Configuration.getGlobalConfiguration();
 		Trajectory geometry = conf.getGeometry();
-		// set params
-		geometry.setDetectorHeight(heigth_px);
-		geometry.setDetectorWidth(width_px);
-		geometry.setPixelDimensionX(pxX_mm);
-		geometry.setPixelDimensionY(pxY_mm);
-		// set global conf
+		// set detector params
+		geometry.setDetectorHeight(heigth_px_s);
+		geometry.setDetectorWidth(width_px_s);
+		geometry.setPixelDimensionX(pxX_mm_scaled);
+		geometry.setPixelDimensionY(pxy_mm_scaled);
+		geometry.setNumProjectionMatrices(number_of_projections);
+			
+		// set volume params
+		//geometry.setOriginInPixelsX(-100);
+		//geometry.setOriginInPixelsY(-100);
+		//geometry.setOriginInPixelsZ(-100);
+		geometry.setOriginInWorld(new PointND(100, 100, 83));
+		if(cnfg.DEBUG) System.out.println("set origin to (" + geometry.getOriginInPixelsX()
+											+ ", " + geometry.getOriginInPixelsY()
+											+ ", " + geometry.getOriginInPixelsZ() + ") (x, y, z)");
+		if(cnfg.DEBUG) System.out.println("world origin is (" + geometry.getOriginX()
+											+ ", " + geometry.getOriginY()
+											+ ", " + geometry.getOriginZ() + ") (x, y, z)");
+		
 		conf.setGeometry(geometry);
 		Configuration.setGlobalConfiguration(conf);
-		if(DEBUG) System.out.println("setting resolutiont to 100% zeego standard");
+		if(cnfg.DEBUG) System.out.println("scaling resolution to (" + heigth_px_s + ", " + width_px_s + ") (h, w)");
 	}
+	
+
+	
+	/**
+	 * @param width detector (resolution)
+	 * @param heigth detector
+	 * @param Adx pixel x dimension in mm
+	 * @param Ady pixel y dimension in mm
+	 * @param numProj
+	 */
+	public static void configure_Zeego(int w, int h, int numProj, AnalyticPhantom phantom) {
+		// calculate pixel dimensions to match physical zeego size
+		double pxX_mm_scaled = projector.width_mm / w;
+		double pxy_mm_scaled = projector.heigth_mm / h;
+		// load global conf
+		Configuration.loadConfiguration();
+		Configuration conf = Configuration.getGlobalConfiguration();
+		Trajectory geometry = conf.getGeometry();
+		// set detector params
+		geometry.setDetectorHeight(h);
+		geometry.setDetectorWidth(w);
+		geometry.setPixelDimensionX(pxX_mm_scaled);
+		geometry.setPixelDimensionY(pxy_mm_scaled);
+		geometry.setNumProjectionMatrices(numProj);
+			
+		// set volume params
+		//geometry.setOriginInPixelsX(-100);
+		//geometry.setOriginInPixelsY(-100);
+		//geometry.setOriginInPixelsZ(-100);
+		//geometry.setOriginInWorld(new PointND(100, 100, 100));
+		geometry.setOriginToPhantomCenter(phantom);
+		if(cnfg.DEBUG) System.out.println("set origin to (" + geometry.getOriginInPixelsX()
+											+ ", " + geometry.getOriginInPixelsY()
+											+ ", " + geometry.getOriginInPixelsZ() + ") (x, y, z)");
+		if(cnfg.DEBUG) System.out.println("world origin is (" + geometry.getOriginX()
+											+ ", " + geometry.getOriginY()
+											+ ", " + geometry.getOriginZ() + ") (x, y, z)");
+		
+		conf.setGeometry(geometry);
+		Configuration.setGlobalConfiguration(conf);
+		if(cnfg.DEBUG) System.out.println("scaling resolution to (" + h + ", " + w + ") (h, w)");
+	}
+
 	/**
 	 * zeego detector has 1240x960 resolution. physical size is 381.92x295.68.
 	 * @param percentage [0.1, 1] downsample percentage of pixels remaining (0.9 = 90% of pixels remain)
@@ -239,31 +331,6 @@ class projector{
 		
 		conf.setGeometry(geometry);
 		Configuration.setGlobalConfiguration(conf);
-	}
-	
-	public static String encodeSetting(projType t) {
-		String s = "";
-		switch(t) {
-		case MATERIAL:
-			s = "mat";
-			break;
-		case POLY120:
-			s = "poly120";
-			break;
-		case POLY120n:
-			s = "poly120_n";
-			break;
-		case POLY80:
-			s = "poly80";
-			break;
-		case POLY80n:
-			s = "poly80_n";
-			break;
-		default:
-			s = "UNIDENTIFIED";
-			break;
-		}
-		return s;
 	}
 }
 
