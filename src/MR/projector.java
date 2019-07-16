@@ -12,6 +12,9 @@ import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.ImageUtil;
 import ij.ImagePlus;
 import ij.measure.Calibration;
+
+import java.io.IOException;
+
 import IceInternal.Time;
 import MR.spectrum_creator;
 
@@ -25,7 +28,6 @@ import MR.spectrum_creator;
 class projector{
 	
 	// CONSTANTS HYPERPARAMETERS
-	static final boolean DEBUG = true;
 	static boolean is_configured = false;
 
 	// ZEEGO CONFIGURATION
@@ -37,22 +39,29 @@ class projector{
 	static final double pxY_mm = 0.308;
 	
 	// members
-	public static ParallelProjectionPhantomRenderer phantom_renderer = new ParallelProjectionPhantomRenderer();
+	private ParallelProjectionPhantomRenderer phantom_renderer;
+	
+	public projector() {
+		this.phantom_renderer = new ParallelProjectionPhantomRenderer();
+	}
 	
 	public static void main(String[] args) {
 		System.out.println("BEGIN TESTING");
 		
 		// set detector to 8% of the resolution as normal
-		configure_Zeego(0.08);
+		//configure_Zeego(0.08);
+		configure_Zeego((int)690/4, (int) 1240/4);
 		
 		// inspecting configuration
-		if(DEBUG) inspect_global_conf();
+		if(cnfg.DEBUG) inspect_global_conf();
 		
 		// create phantom
 		AnalyticPhantom phantom = new MECT();
 		
 		// create projection image in 120 kv
-		Grid3D highEnergyProjections = create_projection(phantom, projType.POLY120);
+		projector p = new projector();
+		System.out.println("starting projection");
+		Grid3D highEnergyProjections = p.create_projection(phantom, projType.POLY80n);
 		
 		// create projection image in 80 kv
 		//Grid3D lowEnergyProjections = create_projection(phantom, projType.POLY80);
@@ -74,7 +83,7 @@ class projector{
 	 * @param scale		scale parameter in range from 0.01 to 1 (default 0.08)
 	 * @return			three images in Grid3D representation
 	 */
-	public static Grid3D[] generate_sample(AnalyticPhantom phantom, projType[] t, double scale) {
+	public Grid3D[] generate_sample(AnalyticPhantom phantom, projType[] t, double scale) {
 		assert(t.length == 3);
 		if (!is_configured) configure_Zeego(scale);
 		// creating the projections
@@ -105,7 +114,7 @@ class projector{
 	 * @param t chooses the attenuation model. option listed in enum
 	 * @param energy modulates spectrum in all non-material projections
 	 */
-	public static Grid3D create_projection(AnalyticPhantom phantom, projType t) {
+	public Grid3D create_projection(AnalyticPhantom phantom, projType t) {
 		long projStart = Time.currentMonotonicTimeMillis();
 		// prerequisites
 		Configuration.loadConfiguration();
@@ -114,6 +123,8 @@ class projector{
 		// set the detector type
 		XRayDetector dect = createDetector(t);
 		conf.setDetector(dect);
+		if(cnfg.DEBUG) inspect_global_conf();
+		
 		
 		// create a phantom at 80 and 120 kv
 		Grid3D result = null;
@@ -121,16 +132,16 @@ class projector{
 			// try to circumvent that : phantom_renderer.configure();
 			phantom_renderer.configure(phantom, dect);
 			
-			if(DEBUG) System.out.println("BEGIN RENDERING");
+			if(cnfg.DEBUG) System.out.println("BEGIN RENDERING");
 			result = PhantomRenderer.generateProjections(phantom_renderer);	
-			if(DEBUG) System.out.println("END RENDERING");
+			if(cnfg.DEBUG) System.out.println("END RENDERING");
 
 		} catch (Exception e) {
 			// could come from phantom_renderer.configure()
 			e.printStackTrace();
 			System.exit(1);
 		}
-		if(DEBUG) {
+		if(cnfg.DEBUG) {
 			System.out.println("projecting took " + (Time.currentMonotonicTimeMillis() - projStart) / 1000+ "s");
 		}
 		return result;
@@ -143,34 +154,42 @@ class projector{
 	 */
 	private static XRayDetector createDetector(projType t) {
 		long dectStart = Time.currentMonotonicTimeMillis();
-		XRayDetector dect;
+		XRayDetector dect = null;
 		switch(t) {
 		  case MATERIAL:
 			// NOT IMPLEMENTED PROPERLY
 			dect = new MaterialPathLengthDetector();
-			if(DEBUG) System.out.println("configured detector mat"); 
+			if(cnfg.DEBUG) System.out.println("configured detector mat"); 
 		    break;
 		  case POLY80:
+			  System.err.println("[projector] POLY80 not implemented yet");
+			  System.exit(0);
+			  break;
+		  case POLY80n:
 			dect = new PolychromaticDetectorWithNoise();
-			dect.setNameString("PolyChromaticDetector @ 80kv");
+			dect.setNameString("noisy PolyChromaticDetector @ 80kv");
 			//TODO set PolyChromaticSpectrum (maybe just load it.. generation takes long)
 			PolychromaticAbsorptionModel mo80 = spectrum_creator.configureAbsorbtionModel(t);
 			dect.setModel(mo80);
-			if(DEBUG) System.out.println("configured detector poly80"); 
+			if(cnfg.DEBUG) System.out.println("configured detector poly80n"); 
 		    break;
 		  case POLY120:
+			  System.err.println("[projector] POLY120 not implemented yet");
+			  System.exit(0);
+			  break;
+		  case POLY120n:
 			dect = new PolychromaticDetectorWithNoise();
-			dect.setNameString("PolyChromaticDetector @ 120kv");
+			dect.setNameString("noisy PolyChromaticDetector @ 120kv");
 			PolychromaticAbsorptionModel mo120 = spectrum_creator.configureAbsorbtionModel(t);
 			dect.setModel(mo120);		
-			if(DEBUG) System.out.println("configured detector poly120"); 
+			if(cnfg.DEBUG) System.out.println("configured detector poly120n"); 
 			break;
 		  default:
 			// NOT IMPLEMENTED PROPERLY
 			dect = new SimpleMonochromaticDetector();
-			if(DEBUG) System.out.println("SOMETHING wrong monochromatic wasnt planned to work"); 
+			if(cnfg.DEBUG) System.out.println("SOMETHING wrong monochromatic wasnt planned to work"); 
 		}
-		if(DEBUG) {
+		if(cnfg.DEBUG) {
 			System.out.println("Detector Creation : " + (Time.currentMonotonicTimeMillis() - dectStart) + "ms");
 		}
 		return dect;
@@ -227,7 +246,7 @@ class projector{
 		// set global conf
 		conf.setGeometry(geometry);
 		Configuration.setGlobalConfiguration(conf);
-		if(DEBUG) System.out.println("setting resolutiont to 100% zeego standard");
+		if(cnfg.DEBUG) System.out.println("setting resolution to 100% zeego standard");
 	}
 	/**
 	 * zeego detector has 1240x960 resolution. physical size is 381.92x295.68.
@@ -249,17 +268,43 @@ class projector{
 		double pxX_mm_scaled = width_mm / width_px_new;
 		double pxy_mm_scaled = heigth_mm / heigth_px_new;
 
-		if(DEBUG) System.out.println("scaling to " + (((double)width_px_new*(double)heigth_px_new)/num_px)*100 + "% (target: " + percentage*100 + "%)");
+		if(cnfg.DEBUG) System.out.println("scalingr resolution to " + (((double)width_px_new*(double)heigth_px_new)/num_px)*100 + "% (target: " + percentage*100 + "%)");
 	
 		// load global conf
 		Configuration.loadConfiguration();
 		Configuration conf = Configuration.getGlobalConfiguration();
 		Trajectory geometry = conf.getGeometry();
-		geometry.setDetectorHeight(690);
 		
 		// set params
 		geometry.setDetectorHeight(heigth_px_new);
 		geometry.setDetectorWidth(width_px_new);
+		geometry.setPixelDimensionX(pxX_mm_scaled);
+		geometry.setPixelDimensionY(pxy_mm_scaled);
+		
+		conf.setGeometry(geometry);
+		Configuration.setGlobalConfiguration(conf);
+	}
+	
+	/**
+	 * sets detector resolution in pixels
+	 * @param h	y detector resolution 	(reality 960)
+	 * @param w detector width in px	(reality 1240)
+	 */
+	public static void configure_Zeego(int h, int w) {
+
+		double pxX_mm_scaled = projector.width_mm / w;
+		double pxy_mm_scaled = projector.heigth_mm / h;
+
+		if(cnfg.DEBUG) System.out.println("scaling resolution to (" + h + ", " + w + ") (h, w)");
+	
+		// load global conf
+		Configuration.loadConfiguration();
+		Configuration conf = Configuration.getGlobalConfiguration();
+		Trajectory geometry = conf.getGeometry();
+		
+		// set params
+		geometry.setDetectorHeight(h);
+		geometry.setDetectorWidth(w);
 		geometry.setPixelDimensionX(pxX_mm_scaled);
 		geometry.setPixelDimensionY(pxy_mm_scaled);
 		
@@ -274,55 +319,19 @@ class projector{
 			s = "mat_";
 			break;
 		case MATERIALn:
-			s = "mat_n";
-			break;
-		case MATERIALnr:
-			s = "mat_nr";
-			break;
-		case MATERIALnrt:
-			s = "mat_nrt";
-			break;
-		case MATERIALnt:
-			s = "mat_nt";
-			break;
-		case MATERIALrt:
-			s = "mat_rt";
+			s = "mat_n_";
 			break;
 		case POLY120:
 			s = "poly120_";
 			break;
 		case POLY120n:
-			s = "poly120_n";
-			break;
-		case POLY120nr:
-			s = "poly120_nr";
-			break;
-		case POLY120nrt:
-			s = "poly120_nrt";
-			break;
-		case POLY120nt:
-			s = "poly120_nt";
-			break;
-		case POLY120rt:
-			s = "poly120_rt";
+			s = "poly120_n_";
 			break;
 		case POLY80:
 			s = "poly80_";
 			break;
 		case POLY80n:
-			s = "poly80_n";
-			break;
-		case POLY80nr:
-			s = "poly80_nr";
-			break;
-		case POLY80nrt:
-			s = "poly80_nrt";
-			break;
-		case POLY80nt:
-			s = "poly80_nt";
-			break;
-		case POLY80rt:
-			s = "poly80_rt";
+			s = "poly80_n_";
 			break;
 		default:
 			s = "UNIDENTIFIED";
