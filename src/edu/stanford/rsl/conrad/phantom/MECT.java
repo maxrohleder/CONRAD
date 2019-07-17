@@ -20,8 +20,11 @@ public class MECT extends AnalyticPhantom{
 	 */
 	private static final long serialVersionUID = 110619L;
 	private double scale_factor = 1;
-	private static final double x_mm = 400; 
-	private static final double y_mm = 300; 
+	private static boolean use_outer = false;
+	private static final double x_outer_mm = 200; 
+	private static final double y_outer_mm = 150; 
+	private static final double x_inner_mm = 100; 
+	private static final double y_inner_mm = 100; 
 	private static final double z_mm = 165;
 	private static final double rod_size_mm = 28.5;
 	
@@ -56,7 +59,13 @@ public class MECT extends AnalyticPhantom{
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
 		// create main ellipsiod object with dims 400x300x165 mm
-		Cylinder mainCylinder = new Cylinder(x_mm*scale_factor, y_mm*scale_factor, z_mm*scale_factor);
+		Cylinder mainCylinder;
+		if(use_outer) {
+			mainCylinder = new Cylinder(x_outer_mm*scale_factor, y_outer_mm*scale_factor, z_mm*scale_factor);
+		}else {
+			mainCylinder = new Cylinder(x_inner_mm*scale_factor, y_inner_mm*scale_factor, z_mm*scale_factor);
+
+		}
 		MECT.setShape(mainCylinder);
 		add(MECT);
 		/*
@@ -65,16 +74,17 @@ public class MECT extends AnalyticPhantom{
 		 * different materials 
 		*/
 		
-		// set outer rods to bone
-		for(int i = 10; i < 16; i++) {
-			setRodMaterial(i, "bone");
-		}
-		
 		// set inner rods to bone too
 		for(int i = 20; i < 28; i++) {
 			setRodMaterial(i, "bone");
 		}
 		
+		// set outer rods to bone
+		if(use_outer) {
+			for(int i = 10; i < 16; i++) {
+				setRodMaterial(i, "bone");
+			}
+		}
 		// for testing purposes set bullseye and nose to polyethylene
 		setRodMaterial(1, "Polyethylene");
 		setRodMaterial(2, "Polyethylene");
