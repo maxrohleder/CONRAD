@@ -163,7 +163,7 @@ public abstract class RegKeys {
 	 * 
 	 * @see edu.stanford.rsl.conrad.phantom.workers.AnalyticPhantom3DVolumeRenderer
 	 */
-	public static final String RENDER_PHANTOM_VOLUME_AUTO_CENTER = "RENDER_PHANTOM_VOLUME_AUTO_CENTER";
+	public static final String RENDER_PHANTOM_VOLUME_AUTO_CENTER = "true";
 
 	/**
 	 * This flag is used in XCatScene.
@@ -252,7 +252,7 @@ public abstract class RegKeys {
 	 * The <b>value</b> is a <b>String</b> indicating the device identifier as reported by the driver.
 	 * @see edu.stanford.rsl.conrad.opencl.OpenCLUtil#createContext
 	 */
-	public static final String OPENCL_DEVICE_SELECTION = "OPENCL_DEVICE_SELECTION";
+	public static final String OPENCL_DEVICE_SELECTION = "2";
 	
 	/**
 	 * Entry to set the location of a data file that can be used with Weka. When a classifier is trained, the data is written to this location.<br> 

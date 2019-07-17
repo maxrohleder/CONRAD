@@ -1,6 +1,8 @@
 package MR;
 
 import edu.stanford.rsl.conrad.data.numeric.Grid3D;
+import edu.stanford.rsl.conrad.opencl.OpenCLProjectionPhantomRenderer;
+import edu.stanford.rsl.conrad.phantom.renderer.ParallelProjectionPhantomRenderer;
 import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.ImageUtil;
 import ij.ImagePlus;

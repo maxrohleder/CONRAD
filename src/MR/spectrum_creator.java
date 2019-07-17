@@ -49,11 +49,12 @@ class spectrum_creator{
 	 * @return Absorption Model fittet to Zeego
 	 */
 	public static PolychromaticAbsorptionModel configureAbsorbtionModel(projType t) {
-
-		PolychromaticAbsorptionModel mo = new PolychromaticAbsorptionModel();
-		PolychromaticXRaySpectrum  spectrum = spectrum_creator.create_zeego_spectrum(t);
-		mo.setInputSpectrum(spectrum);
-		return mo;
+		if(t != projType.MATERIAL) {
+			PolychromaticAbsorptionModel mo = new PolychromaticAbsorptionModel();
+			PolychromaticXRaySpectrum  spectrum = spectrum_creator.create_zeego_spectrum(t);
+			mo.setInputSpectrum(spectrum);
+			return mo;
+		}
 	}
 	
 	/**
