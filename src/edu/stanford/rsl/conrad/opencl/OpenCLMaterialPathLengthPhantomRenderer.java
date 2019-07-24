@@ -117,6 +117,30 @@ public class OpenCLMaterialPathLengthPhantomRenderer extends OpenCLProjectionPha
 
 		configured = true;
 	}
+	
+	public void configure(AnalyticPhantom phantom) {
+		CLContext context = OpenCLUtil.createContext();
+		CLDevice device = context.getMaxFlopsDevice();
+
+		configure(phantom, context, device, false);
+
+		materials = new ArrayList<Material>();
+		for (PhysicalObject o: phantom){
+			if (! materials.contains(o.getMaterial())) materials.add(o.getMaterial());
+		}
+
+		mus = new HashMap<Material, CLBuffer<FloatBuffer>>();
+		for (int i = 0; i< materials.size(); i++){
+			mus.put(materials.get(i), generateMuMap(context, device, materials.get(i)));
+		}
+
+		channelNames = new String[materials.size()];
+		for (int i=0; i < materials.size(); i ++){
+			channelNames[i]=materials.get(i).getName(); 
+		}
+
+		setConfigured(true);
+	}
 
 	@Override
 	public String getBibtexCitation() {

@@ -16,21 +16,26 @@ of simulating these physical effects and hence will be used to model Dual Energy
 
 The file training_data_generator.java will contain the main functionality of 
 generating Simulation Data. Fill in all Fields at the top of the file marked by a comment,
-then run the classes main method. It will output samples into the specified output_directory,
+then run the classes main method. It will output samples into the specified OUTPUT_DIR,
 creating a directory for every simulated scan in the format specified below.
+
+parameters to specify: 
+
+CONFIG_DIR: 		directory containing three files named: MAT.xml, POLY80.xml and POLY120.xml
+OUTPUT_DIR:			directory which shall contain the data later
+
 
 ------------------------ Definition of output folder and file structure-------------------------
 
 Executing the source as described above will create the following file tree for one sample:
 
-~/root_dir/mmddhhmmss_<serialnumber>/CONRAD.xml
-~/root_dir/mmddhhmmss_<serialnumber>/MAT_XxYxZxC.raw
-~/root_dir/mmddhhmmss_<serialnumber>/POLY80_XxYxZ.raw
-~/root_dir/mmddhhmmss_<serialnumber>/POLY120_XxYxZ.raw
+~/OUTPUT_DIR/mmddhhmmss_<serialnumber>/MAT_XxYxZxC.raw
+~/OUTPUT_DIR/mmddhhmmss_<serialnumber>/POLY80_XxYxZ.raw
+~/OUTPUT_DIR/mmddhhmmss_<serialnumber>/POLY120_XxYxZ.raw
 
 file tree specification:
 
-- root_dir 			specified output directory
+- OUTPUT_DIR		specified output directory
 - mmddhhmmss		mm (month), dd (day), hh (hour), (mm) minutes, ss (seconds)
 - serialnumber		running in range from zero to specified number of wanted samples
 - XxYxZ 			specified resolution seperated by the letter x (raw data convention)
@@ -38,9 +43,8 @@ file tree specification:
 
 data structure:
 
-The file CONRAD.xml is a dump of the framework's configuration. For reproduceability purposes.
-The files POLY80.. and POLy120.. contain the samples input data
-The file MAT.. contains the samples target structured in channels per material
+The files POLY80_XxYxZ.raw and POLY120_XxYxZ.raw contain the samples input data (with dimensions X, Y, Z)
+The file MAT_XxYxZxC.raw contains the samples target structured in channels per material
 
 All images are saved in raw 32 bit unsigned integer data type.
 

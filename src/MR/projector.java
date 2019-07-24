@@ -1,21 +1,34 @@
 package MR;
 
 import edu.stanford.rsl.conrad.data.numeric.Grid3D;
+import edu.stanford.rsl.conrad.data.numeric.MultiChannelGrid3D;
 import edu.stanford.rsl.conrad.geometry.shapes.simple.PointND;
 import edu.stanford.rsl.conrad.geometry.trajectories.Trajectory;
 import edu.stanford.rsl.conrad.opencl.OpenCLMaterialPathLengthPhantomRenderer;
 import edu.stanford.rsl.conrad.opencl.OpenCLProjectionPhantomRenderer;
+import edu.stanford.rsl.conrad.opencl.OpenCLUtil;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 import edu.stanford.rsl.conrad.phantom.MECT;
 import edu.stanford.rsl.conrad.phantom.renderer.ParallelProjectionPhantomRenderer;
 import edu.stanford.rsl.conrad.phantom.renderer.PhantomRenderer;
+import edu.stanford.rsl.conrad.physics.PhysicalObject;
 import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.detector.*;
+import edu.stanford.rsl.conrad.physics.materials.Material;
 import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.ImageUtil;
 import edu.stanford.rsl.conrad.utils.RegKeys;
 import ij.ImagePlus;
 import ij.measure.Calibration;
+
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import com.jogamp.opencl.CLBuffer;
+import com.jogamp.opencl.CLContext;
+import com.jogamp.opencl.CLDevice;
+
 import IceInternal.Time;
 import MR.spectrum_creator;
 
@@ -27,173 +40,116 @@ import MR.spectrum_creator;
  *
  */
 class projector{
-
-	// rendering options
-	projType prot;
-	boolean useGPU;
-	int number_materials; // initialised at construction time
-	String[] materials = {"bone", "iodine"}; // default is bone and iodine
-
-	// different renderers 
-	public ParallelProjectionPhantomRenderer parrallel_cpu_renderer;
-	public OpenCLMaterialPathLengthPhantomRenderer gpu_mat_renderer;
-	public OpenCLProjectionPhantomRenderer gpu_renderer;
-	private static PhantomRenderer phantom_renderer; // motherclass of all renderers
 	
-	public projector(boolean use_gpu, projType pro) {
-		// variable init
-		this.prot = pro;
-		this.useGPU = use_gpu;
-		this.number_materials = materials.length;
-		// choose renderer based on params
-		if(use_gpu && pro == projType.MATERIAL) {
-			// use opencl material renderer
-			System.err.println("[projector] opencl material constructor not implemented yet");
-			System.exit(0);
-		} else if(use_gpu && pro != projType.MATERIAL){
-			// use the opencl attenuation based projector
-			Configuration.loadConfiguration();
-			this.gpu_renderer = new OpenCLProjectionPhantomRenderer();
-		} else if(!use_gpu && pro == projType.MATERIAL){
-			// use Material Path Length renderer
-			System.err.println("[projector] paralell material constructor not implemented yet");
-			System.exit(0);
-		} else {
-			// use parrallel attenuation based renderer
-			parrallel_cpu_renderer = new ParallelProjectionPhantomRenderer();
-		}
-		if(use_gpu) {
-			assert RegKeys.RENDER_PHANTOM_VOLUME_AUTO_CENTER == "true";
-			assert RegKeys.OPENCL_DEVICE_SELECTION == "2"; // select device there
-		}
-		//if(cnfg.DEBUG) System.out.println("using " + parrallel_cpu_renderer + gpu_mat_renderer + gpu_renderer);
-	}
-	
+	/**
+	 * test main function. actual functionality will be in trainings_data_generator.java
+	 * @param args
+	 */
 	public static void main(String[] args) {
 		
 		// create phantom and renderer
 		AnalyticPhantom phantom = new MECT();
-		projector p = new projector(true, projType.POLY120);
-		
-		// tailor projection params to zeego
-		//zeego.downsampled_configuration(200, phantom);
-		zeego.custom_configuration(1240, 960, 200, phantom);
+		projector p = new projector(projType.MATERIAL);
 
-		// create cpu projection image in 120 kv
-		Grid3D highEnergyProjections = p.create_projection(phantom);
+		// create material projections
+		Grid3D materialProjections = p.computeMaterialGrids(phantom);
+		
+		Configuration.saveConfiguration(Configuration.getGlobalConfiguration(), CONRAD_CONFIG);
+		
+		//MultiChannelGrid3D gridded = p.toChannels(materialProjections);
+		
+		// filter together the channels to obtain attenuation information
+		//Grid3D highEnergyProjections = p.getPolchromaticImageFromMaterialGrid(gridded, projType.POLY120);
+		//Grid3D lowEnergyProjections = p.getPolchromaticImageFromMaterialGrid(gridded, projType.POLY80);
 		
 		// visualize projection data
-		helpers.showGrid(highEnergyProjections, "Poly120_test");
-		//showGrid(lowEnergyProjections);
+		helpers.showGrid(materialProjections, "MATERIAL");
+		//helpers.showGrid(highEnergyProjections, "POLY120");
+		//helpers.showGrid(lowEnergyProjections, "POLY80");
 		
 	}
+
+	private MultiChannelGrid3D toChannels(Grid3D materialProjections) {
+		//TODO implement
+		Configuration conf = Configuration.getGlobalConfiguration();
+		int x = conf.getGeometry().getDetectorWidth();
+		int y = conf.getGeometry().getDetectorHeight();
+		int z = conf.getGeometry().getNumProjectionMatrices();
+		int[] xyzc = materialProjections.getSize();
+		int c = xyzc[3];
+		MultiChannelGrid3D channeled = new MultiChannelGrid3D(x, y, z, c);
+		return channeled;
+	}
+
+
+	// rendering options
+	static String CONRAD_CONFIG = "/home/mr/Documents/bachelor/CONRAD/src/MR/config_dir/MAT_OPENCL_RSL_2MAT.xml";
+	projType prot;
+	boolean useGPU;
+
+
+	// material renderer
+	public OpenCLMaterialPathLengthPhantomRenderer gpu_mat_renderer;
 	
+	public projector(projType pro) {
+		this.prot = pro;
+		// choose renderer based on params
+		if(pro == projType.MATERIAL) {
+			// configure projector with xml file
+			Configuration conf = Configuration.loadConfiguration(CONRAD_CONFIG);
+			Configuration.setGlobalConfiguration(conf);
+			if(cnfg.DEBUG) System.out.println(RegKeys.OPENCL_DEVICE_SELECTION);
+			// do the actual raytracing and calculate material images
+			gpu_mat_renderer = new OpenCLMaterialPathLengthPhantomRenderer();
+		} else {
+			// use MultiChannelMaterialFiltering to create POLY80 and POLY120 images
+			System.err.println("[projector] constructor not implemented yet");
+			System.exit(0);
+		}
+
+		//if(cnfg.DEBUG) System.out.println("using " + parrallel_cpu_renderer + gpu_mat_renderer + gpu_renderer);
+	}
+	
+
 	/**
 	 * creates projection domain images with the renderer specified in constructor
 	 * @param energy modulates spectrum in all non-material projections
+	 * @throws Exception 
 	 */
-	public Grid3D create_projection(AnalyticPhantom phantom) {
-		Grid3D result = null;
-		long projStart = Time.currentMonotonicTimeMillis();
-		// prerequisites
-		Configuration.loadConfiguration();
-		Configuration conf = Configuration.getGlobalConfiguration();
+	public Grid3D computeMaterialGrids(AnalyticPhantom phantom) {
 		
-		if(this.useGPU && this.prot == projType.MATERIAL) {
-			// USING THE OPENCL MATERIAL PATH LENGTH RENDERER
-			// TODO implement
-			System.err.println("[projector.create_projection] opencl material renderer not implemented");
+		// configure the phantom renderer
+		gpu_mat_renderer.configure(phantom);
+		
+		//start the projection
+		long projStart = Time.currentMonotonicTimeMillis();
+		
+		Grid3D result = null;
+		try {
+			result = PhantomRenderer.generateProjections(this.gpu_mat_renderer);
+		} catch (Exception e) {
+			// the actual block sizes of the phantom to render were to big
+			e.printStackTrace();
 			System.exit(0);
-		} 
-		else if(this.useGPU && this.prot != projType.MATERIAL) {
-			// USING THE OPENCL ATTENUATION RENDERER
-			// load the phantom
-			this.gpu_renderer.setPhantom(phantom);
-			try {
-				// now select decive and greate opencl context
-				this.gpu_renderer.configure();
-				// check config before projection
-				if (cnfg.DEBUG) inspect_global_conf();
-				// computation (has some output per default)
-				result = PhantomRenderer.generateProjections(this.gpu_renderer);
-			} catch (Exception e) {
-				// renderer config failed
-				e.printStackTrace();
-				System.exit(1);
-			}
-		} 
-		else if(!this.useGPU && this.prot == projType.MATERIAL) {
-			// USING THE MATERIAL PATH LENGTH DETECTOR AND PARALLEL RENDERER
-			// TODO implement!
-			System.err.println("[projector.createprojection] material renderer not implemented");
-			System.exit(0);
-		}else {
-			// USING THE ATTENUATION BASED PARALLEL RENDERER
-			// set the detector type and attenuation model (120 or 80)
-			XRayDetector dect = createDetector(this.prot);
-			conf.setDetector(dect);
-			
-			// create a phantom at either 80 or 120 kv or material images
-			try {
-				// set model and configure worker threads
-				parrallel_cpu_renderer.configure(phantom, dect);
-				// check config before projection
-				if (cnfg.DEBUG) inspect_global_conf();
-				// TODO find a way to dump config file to folder as well
-				result = PhantomRenderer.generateProjections(this.parrallel_cpu_renderer);		
-			} catch (Exception e) {
-				// could come from phantom_renderer.configure()
-				e.printStackTrace();
-				System.exit(1);
-			}
 		}
+
 		if(cnfg.DEBUG) {
 			System.out.println("projecting took " + (Time.currentMonotonicTimeMillis() - projStart) / 1000+ "s");
 		}
 		return result;
 	}
 	
-	/**
-	 * configures a detector and attenuation type(which will influence the outcome image)
-	 * @param t chooses between MaterialPathLengthDetector or PolyChromaticDetector with either 80 or 120 kv spectrum (see enum for options)
-	 * @return fully configured detector
-	 */
-	private XRayDetector createDetector(projType t) {
-		long dectStart = Time.currentMonotonicTimeMillis();
-		XRayDetector dect;
-		if( t == projType.MATERIAL) {
-			MaterialPathLengthDetector dectm = new MaterialPathLengthDetector();
-			dectm.setNumberOfMaterials(number_materials);
-			dectm.setConfigured(true);
-			dectm.init();
-			dectm.setNames(materials);
-			dect = dectm;
-			if(cnfg.DEBUG) System.out.println("configured detector mat"); 
-		}
-		else {
-			if(	t == projType.POLY80 || t == projType.POLY120) {
-				dect = new SimplePolychromaticDetector();
-				dect.setNameString("Simple PolyChromaticDetector");
-				if(cnfg.DEBUG) System.out.println("configured simple detector " + t); 
-			}
-			else {
-				dect = new PolychromaticDetectorWithNoise();
-				dect.setNameString("Noisy PolyChromaticDetector");
-				if(cnfg.DEBUG) System.out.println("configured noisy detector " + t); 
-			}
-			PolychromaticAbsorptionModel mo = spectrum_creator.configureAbsorbtionModel(t);
-			dect.setModel(mo);
-		}
-		if(cnfg.DEBUG) {
-			System.out.println("Detector Creation : " + (Time.currentMonotonicTimeMillis() - dectStart) + "ms");
-		}
-		return dect;
+	public Grid3D getPolchromaticImageFromMaterialGrid(MultiChannelGrid3D MatData, projType p) {
+		System.err.println("method not implemented yet - returning dummy");
+		//TODO implement
+		Configuration conf = Configuration.getGlobalConfiguration();
+		int x = conf.getGeometry().getDetectorWidth();
+		int y = conf.getGeometry().getDetectorHeight();
+		int z = conf.getGeometry().getNumProjectionMatrices();
+		return new Grid3D(x, y, z);
 	}
 	
-	public void setMaterials(String[] mats) {
-		this.materials = mats;
-		this.number_materials = mats.length;
-	}
+	
 
 	/**
 	 * helper class to inspect current state of Configuration
