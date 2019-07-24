@@ -28,7 +28,7 @@ Executing the source as described above will create the following file tree for 
 ~/root_dir/mmddhhmmss_<serialnumber>/POLY80_XxYxZ.raw
 ~/root_dir/mmddhhmmss_<serialnumber>/POLY120_XxYxZ.raw
 
-file tree:
+file tree specification:
 
 - root_dir 			specified output directory
 - mmddhhmmss		mm (month), dd (day), hh (hour), (mm) minutes, ss (seconds)
