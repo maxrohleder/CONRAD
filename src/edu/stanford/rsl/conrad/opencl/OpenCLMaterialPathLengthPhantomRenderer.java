@@ -139,7 +139,7 @@ public class OpenCLMaterialPathLengthPhantomRenderer extends OpenCLProjectionPha
 			channelNames[i]=materials.get(i).getName(); 
 		}
 
-		setConfigured(true);
+		configured = true;
 	}
 
 	@Override
