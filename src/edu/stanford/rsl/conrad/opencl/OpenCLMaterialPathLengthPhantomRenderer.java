@@ -55,7 +55,7 @@ public class OpenCLMaterialPathLengthPhantomRenderer extends OpenCLProjectionPha
 			renderer.drawScreenMonochromatic(screenBuffer, mus.get(materials.get(c)), priorities);
 			//render.drawScreen(screenBuffer);
 			time = System.nanoTime() - time;
-			System.out.println("path length screen buffer drawing took: "+(time/1000000)+"ms for " +materials.get(c));
+			//System.out.println("path length screen buffer drawing took: "+(time/1000000)+"ms for " +materials.get(c));
 
 
 			CLCommandQueue clc = renderer.device.createCommandQueue();

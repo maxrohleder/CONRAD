@@ -64,7 +64,7 @@ public class OpenCLProjectionPhantomRenderer extends StreamingPhantomRenderer {
 	public void createPhantom() {
 		// TODO: generalize AbstractShape to allow tessellation of all kinds of objects
 		// TODO: tessellate all shapes on GPU
-		System.out.println(phantom.getName());
+		System.out.println("rendering " + phantom.getName());
 		//PrioritizableScene phantomScene = phantom;
 
 		// Generate sampling points for static splines
@@ -103,7 +103,7 @@ public class OpenCLProjectionPhantomRenderer extends StreamingPhantomRenderer {
 			for (int ID = 0; ID < clEvaluatables.size(); ID++){
 			//for (int ID = 4; ID < 5; ID++){
 					
-			OpenCLEvaluatable os = clEvaluatables.get(ID);
+				OpenCLEvaluatable os = clEvaluatables.get(ID);
 				// create spline points
 
 
@@ -163,8 +163,8 @@ public class OpenCLProjectionPhantomRenderer extends StreamingPhantomRenderer {
 				}
 			}
 			time = System.nanoTime() - time;
-			System.out.println("Open CL computation for projection "+ k +" global took: "+ (time/1000000) +"ms ");
-
+			//System.out.println("Open CL computation for projection "+ k +" global took: "+ (time/1000000) +"ms ");
+			if(k%4 == 0) System.out.print('.');
 			evaluateAbsorptionModel(k);
 
 			renderer.resetBuffers();			// its not the internal buffer, also used by TestOpenCL
@@ -173,6 +173,7 @@ public class OpenCLProjectionPhantomRenderer extends StreamingPhantomRenderer {
 				samplingPointsVariantsHeart.release();
 			}
 		}
+		System.out.println("done");
 		samplingPoints.release();
 		release();
 	}
