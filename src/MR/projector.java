@@ -10,6 +10,9 @@ import edu.stanford.rsl.conrad.geometry.trajectories.Trajectory;
 import edu.stanford.rsl.conrad.opencl.OpenCLMaterialPathLengthPhantomRenderer;
 import edu.stanford.rsl.conrad.opencl.OpenCLProjectionPhantomRenderer;
 import edu.stanford.rsl.conrad.opencl.OpenCLUtil;
+import edu.stanford.rsl.conrad.parallel.ParallelThreadExecutor;
+import edu.stanford.rsl.conrad.parallel.ParallelizableRunnable;
+import edu.stanford.rsl.conrad.parallel.SimpleParallelThread;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 import edu.stanford.rsl.conrad.phantom.MECT;
 import edu.stanford.rsl.conrad.phantom.renderer.ParallelProjectionPhantomRenderer;
@@ -18,6 +21,7 @@ import edu.stanford.rsl.conrad.physics.PhysicalObject;
 import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.detector.*;
 import edu.stanford.rsl.conrad.physics.materials.Material;
+import edu.stanford.rsl.conrad.utils.CONRAD;
 import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.ImageUtil;
 import edu.stanford.rsl.conrad.utils.RegKeys;
@@ -28,6 +32,7 @@ import java.io.File;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.CountDownLatch;
 
 import com.jogamp.opencl.CLBuffer;
 import com.jogamp.opencl.CLContext;
@@ -57,36 +62,18 @@ class projector{
 
 		// create material projections
 		Grid3D materialProjections = p.computeMaterialGrids(phantom);
-		
-		System.out.println(RegKeys.RENDER_PHANTOM_VOLUME_AUTO_CENTER);
-		
-		//Configuration.saveConfiguration(Configuration.getGlobalConfiguration(), CONRAD_CONFIG);
-		
-		//MultiChannelGrid3D gridded = p.toChannels(materialProjections);
-		
+		Configuration.saveConfiguration(Configuration.getGlobalConfiguration(), projector.rootDirPath+"/MAT.xml");
+			
 		// filter together the channels to obtain attenuation information
-		//Grid3D highEnergyProjections = p.getPolchromaticImageFromMaterialGrid(gridded, projType.POLY120);
-		//Grid3D lowEnergyProjections = p.getPolchromaticImageFromMaterialGrid(gridded, projType.POLY80);
+		Grid3D highEnergyProjections = p.getPolchromaticImageFromMaterialGrid(materialProjections, projType.POLY120);
+		//Grid3D lowEnergyProjections = p.getPolchromaticImageFromMaterialGrid(materialProjections, projType.POLY80);
 		
 		// visualize projection data
 		helpers.showGrid(materialProjections, "MATERIAL");
-		//helpers.showGrid(highEnergyProjections, "POLY120");
+		helpers.showGrid(highEnergyProjections, "POLY120");
 		//helpers.showGrid(lowEnergyProjections, "POLY80");
 		
 	}
-
-	private MultiChannelGrid3D toChannels(Grid3D materialProjections) {
-		//TODO implement
-		Configuration conf = Configuration.getGlobalConfiguration();
-		int x = conf.getGeometry().getDetectorWidth();
-		int y = conf.getGeometry().getDetectorHeight();
-		int z = conf.getGeometry().getNumProjectionMatrices();
-		int[] xyzc = materialProjections.getSize();
-		int c = xyzc[3];
-		MultiChannelGrid3D channeled = new MultiChannelGrid3D(x, y, z, c);
-		return channeled;
-	}
-
 
 	// rendering options
 	private Configuration matConf, poly80Conf, poly120Conf;
@@ -99,6 +86,44 @@ class projector{
 
 	// material renderer
 	public OpenCLMaterialPathLengthPhantomRenderer gpu_mat_renderer;
+	
+	/**
+	 * parallelization class for faster polychromatic filtering (12x faster)
+	 * @author rohleder
+	 */
+	class ParrallelFilteringThread extends SimpleParallelThread{
+		int maxThreads;
+		Grid3D input;
+		Grid3D output;
+		
+
+		public ParrallelFilteringThread(int threadNum, int maxThreads, Grid3D in, Grid3D out) {
+			super(threadNum);
+			this.maxThreads = maxThreads;
+			this.input = in;
+			this.output = out;
+		}
+
+		@Override
+		public void execute() {
+			// create filter (reads detector from global config)
+			SimulateXRayDetector filter = new SimulateXRayDetector();
+			try { filter.configure(); } catch (Exception e) { e.printStackTrace(); }
+			// calculate entry and end point of this thread
+			int blockSize = (int)Math.ceil(((double)output.getSize()[2]) / maxThreads);
+			int start = this.threadNum * blockSize;
+			int end = (this.threadNum+1) * (blockSize);
+			if (end > output.getSize()[2]) end = output.getSize()[2];
+			for (int i = start; i < end; ++i) {
+				if(i%4==0)System.out.print('.');
+				try {
+					this.output.setSubGrid(i, filter.applyToolToImage(this.input.getSubGrid(i)));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 
 	
 	/**
@@ -119,21 +144,13 @@ class projector{
 	
 	/**
 	 * creates a wrapper around MaterialPathLengthRenderer, which enables easy filtering to PolyChromaticImages
-	 * @param configDir directory must include files named like the other parameters
-	 * @param m configuration xml file for material projection rendering
-	 * @param p80 configuration xml file for lower energy projection
-	 * @param p120 configuration xml file for higher energy projection
+	 * @param configDir directory must include files on top level. Example Absolutpath: <configDir>/<m>
+	 * @param m configuration xml file for material projection rendering. Example Absolutpath: <configDir>/<m>
+	 * @param p80 configuration xml file for lower energy projection. Example Absolutpath: <configDir>/<p80>
+	 * @param p120 configuration xml file for higher energy projection. Example Absolutpath: <configDir>/<p120>
 	 */
 	public projector(String configDir, String m, String p80, String p120) {
-
-		// configure projector with xml file
-		initConfigsFromFile(configDir, m, p80, p120);		
-	}
-	
-
-	
-
-	private void initConfigsFromFile(String configDir, String m, String p80, String p120) {
+		// configure projector with xml files
 		File root = new File(configDir);
 		if(!root.isDirectory()) {
 			System.err.println("[projector] config directory does not exist");
@@ -148,14 +165,15 @@ class projector{
 				poly80Conf = Configuration.loadConfiguration(poly80ConfFile.getAbsolutePath());
 				poly120Conf = Configuration.loadConfiguration(poly120ConfFile.getAbsolutePath());
 			} else {
-				System.err.println("[projector] at least one of the required config files is missing! Aborting");
+				System.err.println("[projector] at least one of the following files is missing! Aborting");
 				System.err.println(materialConfFile.getAbsolutePath());
 				System.err.println(poly80ConfFile.getAbsolutePath());
 				System.err.println(poly120ConfFile.getAbsolutePath());
 				System.exit(0);
 			}
-		}	
+		}			
 	}
+	
 
 	/**
 	 * creates projection domain images with the renderer specified in constructor
@@ -186,29 +204,35 @@ class projector{
 		return result;
 	}
 	
-	public Grid3D getPolchromaticImageFromMaterialGrid(MultiChannelGrid3D MatData, projType p) {
+	public Grid3D getPolchromaticImageFromMaterialGrid(Grid3D materialProjections, projType p) {
+		
+		// start filtering
+		if(cnfg.DEBUG) System.out.println("filtering process for " + p.toString());
 		
 		// set the detector from desired configuration
 		Configuration tmp = (p==projType.POLY80) ? poly80Conf : poly120Conf;
 		Configuration.setGlobalConfiguration(tmp);
 		
-		// create filter (reads detector from global config)
-		SimulateXRayDetector filter = new SimulateXRayDetector();
-		try { filter.configure(); } catch (Exception e) { e.printStackTrace(); }
-		
-		int s[] = MatData.getSize();
+		// create empty output grid
+		int s[] = materialProjections.getSize();
 		Grid3D attenuationBasedProjections = new Grid3D(s[0], s[1], s[2]);
 		
-		// iterate over all subgrids/projections, apply filter and store attenuation
-		Grid2D attenuatedProjection = null;
-		for (int i = 0; i < s[0]; i++) {
-			try {
-				attenuatedProjection = filter.applyToolToImage(MatData.getSubGrid(i));
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			attenuationBasedProjections.setSubGrid(i, attenuatedProjection);			
+		// split the work into numThreads pieces
+		int numWorkers = CONRAD.getNumberOfThreads();
+		ParallelizableRunnable [] workloadPartitions = new ParallelizableRunnable[numWorkers];
+		for (int j= 0; j<numWorkers; j++) {
+			workloadPartitions[j]= new ParrallelFilteringThread(j, numWorkers, materialProjections, attenuationBasedProjections);
 		}
+		ParallelThreadExecutor workdistributor = new ParallelThreadExecutor(workloadPartitions);
+		
+		try {
+			workdistributor.execute();
+			System.out.println("done");
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		return attenuationBasedProjections;
 	}
 	
@@ -257,7 +281,28 @@ class projector{
 
 
 
-
+/*
+ * 		
+		WHACK LINEAR APPROACH
+		
+		// create filter (reads detector from global config)
+		SimulateXRayDetector filter = new SimulateXRayDetector();
+		try { filter.configure(); } catch (Exception e) { e.printStackTrace(); }
+		
+		// iterate over all subgrids/projections, apply filter and store attenuation
+		Grid2D attenuatedProjection = null;
+		for (int i = 0; i < s[2]; i++) {
+			try {
+				attenuatedProjection = filter.applyToolToImage(materialProjections.getSubGrid(i));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			attenuationBasedProjections.setSubGrid(i, attenuatedProjection);
+			//if(cnfg.DEBUG) System.out.println("processed projection " + i + " / " + s[2]);
+			if(i%10 == 0) System.out.print('.');
+		}
+		System.out.println("done");
+ */
 
 
 

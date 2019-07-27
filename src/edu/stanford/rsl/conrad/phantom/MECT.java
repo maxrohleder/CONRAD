@@ -1,5 +1,7 @@
 package edu.stanford.rsl.conrad.phantom; 
 
+import java.util.HashMap;
+
 import edu.stanford.rsl.conrad.geometry.shapes.simple.Cylinder;
 import edu.stanford.rsl.conrad.geometry.transforms.Translation;
 import edu.stanford.rsl.conrad.physics.PhysicalObject;
@@ -26,7 +28,10 @@ public class MECT extends AnalyticPhantom{
 	private static final double x_inner_mm = 100; 
 	private static final double y_inner_mm = 100; 
 	private static final double z_mm = 165;
-	private static final double rod_size_mm = 28.5;
+	private static final double rod_size_mm = 14.25;	
+	
+	private HashMap<Integer, String> rodsMaterials;
+	
 	
 
 	@Override
@@ -76,7 +81,7 @@ public class MECT extends AnalyticPhantom{
 		
 		// set inner rods to bone too
 		for(int i = 20; i < 28; i++) {
-			setRodMaterial(i, "bone");
+			setRodMaterial(i, "iodine");
 		}
 		
 		// set outer rods to bone

@@ -1,17 +1,64 @@
 package MR;
 
 import edu.stanford.rsl.conrad.utils.Configuration;
+import edu.stanford.rsl.conrad.utils.RegKeys;
+import edu.stanford.rsl.conrad.filtering.CosineWeightingTool;
+import edu.stanford.rsl.conrad.filtering.ImageFilteringTool;
+import edu.stanford.rsl.conrad.filtering.RampFilteringTool;
+import edu.stanford.rsl.conrad.filtering.redundancy.ParkerWeightingTool;
 import edu.stanford.rsl.conrad.geometry.Projection.CameraAxisDirection;
 import edu.stanford.rsl.conrad.geometry.shapes.simple.PointND;
 import edu.stanford.rsl.conrad.geometry.trajectories.CircularTrajectory;
 import edu.stanford.rsl.conrad.geometry.trajectories.Trajectory;
+import edu.stanford.rsl.conrad.io.ImagePlusDataSink;
 import edu.stanford.rsl.conrad.numerics.SimpleVector;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
+import edu.stanford.rsl.conrad.physics.PolychromaticXRaySpectrum;
+import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
+import edu.stanford.rsl.conrad.physics.detector.MaterialPathLengthDetector;
+import edu.stanford.rsl.conrad.physics.detector.SimplePolychromaticDetector;
+import edu.stanford.rsl.conrad.physics.detector.XRayDetector;
+import edu.stanford.rsl.conrad.reconstruction.VOIBasedReconstructionFilter;
 
 
 public class zeego {
+	// DEFAULT CONFIG PATH
+	public static final String rootDirPath = "/home/mr/Documents/bachelor/CONRAD/src/MR/config_dir";
+	public static final String matConfFilename = "MAT.xml";		// relative to configDir
+	public static final String poly80ConfFilename = "POLY80.xml";
+	public static final String poly120ConfFilename = "POLY120.xml";
+	
+	/**
+	 * generates three config files in the above specified location
+	 * @param args unused
+	 */
+	public static void main(String args[]) {
+		// modify all necessary parameters and save configs for mat, poly80 and poly120
+		generateConfigFiles(rootDirPath, matConfFilename, poly80ConfFilename, poly120ConfFilename);
+		// to target folder
+	}
+	
+	/**
+	 * generates three config files in the above specified location
+	 * @param args unused
+	 */
+	public static void generateConfigFiles(String configDir, String m, String p80, String p120) {
+		// save material projection rendering config
+		saveDefaultConfig(configDir + "/" + m, projType.MATERIAL);
+		
+		//save detector settings for polychromatic spectral projections
+		saveDefaultConfig(configDir + "/" + p80, projType.POLY80);
+		saveDefaultConfig(configDir + "/" + p120, projType.POLY120);
+
+
+	}
+	
 	// PROJECTION SETTINGS
-	static final int number_of_projections = 200;
+	static final int number_of_projections = 10;
+	static final int NUMBER_OF_MATERIALS = 2; // bone and water or iodine and bone
+	static final String MATERIALS[] = {"bone", "iodine"};
+	static final int LOWER_ENERGY = 80; // [kv] as in Mueller 2018, Fast kV switching
+	static final int HIGHER_ENERGY = 120; // [kv] as in Mueller 2018, Fast kV switching
 
 	// REAL DETECTOR CONFIGURATION
 	static final double width_mm = 381.92; // should always remain the same
@@ -35,6 +82,7 @@ public class zeego {
 	private static CameraAxisDirection uDirection = CameraAxisDirection.DETECTORMOTION_PLUS;
 	private static CameraAxisDirection vDirection = CameraAxisDirection.ROTATIONAXIS_PLUS;
 	private static SimpleVector rotationAxis = new SimpleVector(0.0, 0.0, 1.0);
+
 
 	/**
 	 * zeego detector has 1240x960 resolution. physical size is 381.92mm x 295.68mm.
@@ -175,5 +223,131 @@ public class zeego {
 		
 		conf.setGeometry(new_geo);
 		Configuration.setGlobalConfiguration(conf);
+	}
+	
+	/**
+	 * adapted from Configuration.initConfig()
+	 * @param material 
+	 */
+	public static void saveDefaultConfig(String filename, projType ptype) {
+		Configuration config = new Configuration();
+		Trajectory geo = config.getGeometry();
+		if(ptype == projType.POLY120) {
+			
+		}
+		config.setDetector(createDetector(ptype));
+		geo = new Trajectory();
+		geo.setDetectorUDirection(CameraAxisDirection.DETECTORMOTION_PLUS);
+		geo.setDetectorVDirection(CameraAxisDirection.ROTATIONAXIS_PLUS);
+		geo.setDetectorHeight(480);
+		geo.setDetectorWidth(620);
+		geo.setSourceToAxisDistance(600.0);
+		geo.setSourceToDetectorDistance(1200.0);
+		geo.setReconDimensions(256, 256, 256);
+		geo.setPixelDimensionX(1);
+		geo.setPixelDimensionY(1);
+		geo.setVoxelSpacingX(1.0);
+		geo.setVoxelSpacingY(1.0);
+		geo.setVoxelSpacingZ(1.0);
+		geo.setAverageAngularIncrement(1.0);
+		geo.setProjectionStackSize(200);
+		config.setGeometry(geo);
+		config.resetRegistry();
+		config.setRegistryEntry(RegKeys.PATH_TO_CALIBRATION, "C:\\calibration");
+		config.setRegistryEntry(RegKeys.OPENCL_DEVICE_SELECTION, "GeForce GTX 1660 Ti NVIDIA Corporation");
+		config.setRegistryEntry(RegKeys.PATH_TO_CONTROL, "C:\\control");
+		config.setRegistryEntry(RegKeys.MAX_THREADS, "10");
+		config.setRegistryEntry(RegKeys.XCAT_PATH, "E:\\phantom data\\numeric phantoms\\xcat\\NCAT2.0_PC");
+		ImageFilteringTool[] standardPipeline = new ImageFilteringTool[] {
+				new CosineWeightingTool(),
+				new ParkerWeightingTool(),
+				new RampFilteringTool(),
+				new VOIBasedReconstructionFilter()
+		};
+		config.setFilterPipeline(standardPipeline);
+//		config.setFilterPipeline(ImageFilteringTool.getFilterTools());
+		config.setCitationFormat(Configuration.MEDLINE_CITATION_FORMAT);
+		config.setSink(new ImagePlusDataSink());
+		
+		int numProjectionMatrices = config.getGeometry().getProjectionStackSize();
+		double sourceToAxisDistance = config.getGeometry().getSourceToAxisDistance();
+		double averageAngularIncrement = config.getGeometry().getAverageAngularIncrement();
+		double detectorOffsetU = config.getGeometry().getDetectorOffsetU();
+		double detectorOffsetV = config.getGeometry().getDetectorOffsetV();
+		CameraAxisDirection uDirection = config.getGeometry().getDetectorUDirection();
+		CameraAxisDirection vDirection = config.getGeometry().getDetectorVDirection();
+		SimpleVector rotationAxis = new SimpleVector(0, 0, 1);
+		Trajectory geom = new CircularTrajectory(config.getGeometry());
+		geom.setSecondaryAngleArray(null);
+		((CircularTrajectory)geom).setTrajectory(numProjectionMatrices, sourceToAxisDistance, averageAngularIncrement, detectorOffsetU, detectorOffsetV, uDirection, vDirection, rotationAxis);
+		if (geom != null){
+			config.setGeometry(geom);
+		}
+		Configuration.setGlobalConfiguration(config);
+		Configuration.saveConfiguration(Configuration.getGlobalConfiguration(), filename);
+	}
+	
+	/**
+	 * configures a detector and attenuation type(which will influence the outcome image)
+	 * @param t chooses between MaterialPathLengthDetector or PolyChromaticDetector with either 80 or 120 kv spectrum (see enum for options)
+	 * @return fully configured detector
+	 */
+	private static XRayDetector createDetector(projType t) {
+		XRayDetector dect;
+		if( t == projType.MATERIAL) {
+			MaterialPathLengthDetector dectm = new MaterialPathLengthDetector();
+			dectm.setNumberOfMaterials(NUMBER_OF_MATERIALS);
+			dectm.setConfigured(true);
+			dectm.init();
+			dectm.setNames(MATERIALS);
+			dect = dectm;
+			if(cnfg.DEBUG) System.out.println("configured detector mat"); 
+		}
+		else {
+
+			dect = new SimplePolychromaticDetector();
+			dect.setNameString("Simple PolyChromaticDetector");
+			if(cnfg.DEBUG) System.out.println("configured simple detector " + t); 
+
+			PolychromaticAbsorptionModel mo = configureAbsorbtionModel(t);
+			dect.setModel(mo);
+		}
+		return dect;
+	}
+	
+	/**
+	 * creates spectra modeled after zeego tube at 80 or 120 kv peak voltage
+	 * @param t
+	 * @return zeego spectrum 
+	 */
+	public static PolychromaticXRaySpectrum create_zeego_spectrum(projType t) {
+		
+		// material projection types have enum ordinal < 6 (first 6 are material based)
+		if(	t == projType.MATERIAL ) {
+			// should never enter the spectrum creator as material projection is desired
+			System.err.println("material images dont need a polychromatic spectrum");
+			System.exit(1);
+		}
+		// now create the spectrum with either 80 or 120 kv max voltage
+		PolychromaticXRaySpectrum s;
+		if(	t == projType.POLY80 	 || 
+			t == projType.POLY80n) {
+			s = new PolychromaticXRaySpectrum(10, 150, 1, LOWER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
+		}else {
+			s = new PolychromaticXRaySpectrum(10, 150, 1, HIGHER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
+		}
+		return s;
+	}
+	
+	/**
+	 * configures an AbsorptionModel to equip an detector with.
+	 * @param t
+	 * @return Absorption Model fittet to Zeego
+	 */
+	public static PolychromaticAbsorptionModel configureAbsorbtionModel(projType t) {
+		PolychromaticAbsorptionModel mo = new PolychromaticAbsorptionModel();
+		PolychromaticXRaySpectrum  spectrum = spectrum_creator.create_zeego_spectrum(t);
+		mo.setInputSpectrum(spectrum);
+		return mo;
 	}
 }
