@@ -6,6 +6,6 @@ package MR;
  */
 enum projType{
 	MATERIAL,
-	POLY120, POLY120n, // polychromatic projection with or w/out noise 
-	POLY80, POLY80n;
+	POLY120,
+	POLY80;
 }

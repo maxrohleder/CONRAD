@@ -34,8 +34,7 @@ class spectrum_creator{
 		}
 		// now create the spectrum with either 80 or 120 kv max voltage
 		PolychromaticXRaySpectrum s;
-		if(	t == projType.POLY80 	 || 
-			t == projType.POLY80n) {
+		if(	t == projType.POLY80 ) {
 			s = new PolychromaticXRaySpectrum(10, 150, 1, LOWER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
 		}else {
 			s = new PolychromaticXRaySpectrum(10, 150, 1, HIGHER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
@@ -88,8 +87,8 @@ class spectrum_creator{
 	}
 	
 	public static void main(String []args) {
-		vizualizeSpectrum(new PolychromaticXRaySpectrum[] {create_zeego_spectrum(projType.POLY120n), 
-			create_zeego_spectrum(projType.POLY80n)}, new String[] {"POLY120n", "POLY80n"});
+		vizualizeSpectrum(new PolychromaticXRaySpectrum[] {create_zeego_spectrum(projType.POLY120), 
+			create_zeego_spectrum(projType.POLY80)}, new String[] {"POLY120", "POLY80"});
 	}
 }
 

@@ -12,7 +12,7 @@ import edu.stanford.rsl.conrad.physics.materials.database.MaterialsDB;
  * @author Rohleder on Jun 11, 2019
  * 
  * This Class models the Multi-Energy CT Phantom by GAMMEX Inc. Model 1472 used to 
- * assess system capabilities at Stanford RSL. It consists of a 400x300mm ellipsoid base 
+ * assess system capabilities at Stanford RSL. It consists of a 400x300mm diameter ellipsoid base 
  * cylinder with several 28.5mm diameter cylindrical rods, which can be equipped with 
  * different materials. For more detail see the instruction manual.
  */
@@ -22,16 +22,12 @@ public class MECT extends AnalyticPhantom{
 	 */
 	private static final long serialVersionUID = 110619L;
 	private double scale_factor = 1;
-	private static boolean use_outer = false;
-	private static final double x_outer_mm = 200; 
+	private static final double x_outer_mm = 200; //radius
 	private static final double y_outer_mm = 150; 
 	private static final double x_inner_mm = 100; 
 	private static final double y_inner_mm = 100; 
 	private static final double z_mm = 165;
-	private static final double rod_size_mm = 14.25;	
-	
-	private HashMap<Integer, String> rodsMaterials;
-	
+	private static final double rod_size_mm = 14.25;		
 	
 
 	@Override
@@ -53,14 +49,26 @@ public class MECT extends AnalyticPhantom{
 	}
 	
 	/**
+	 *   ----------
+	 *  / 27 20 21 \
+	 * | 26  1 2 22 |
+	 *  \ 25 24 23 /
+	 *   ----------
+	 *   setting only inner 10 rods as bone nummerated as shown above using on
+	 */
+	public MECT() {
+		this(false);
+	}
+	
+	/**
 	 *   -------------
 	 *  /15 27 20 21 10\
 	 * |14 26 1 2 22 11|
 	 *  \13 25 24 23 12/
 	 *   -------------
-	 *   setting rots nummerated as shown above
-	 */
-	public MECT() {
+	 *  @param use_outer if true uses all 16 rods as bone inserts
+	*/
+	public MECT(boolean use_outer) {
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
 		// create main ellipsiod object with dims 400x300x165 mm
@@ -78,10 +86,10 @@ public class MECT extends AnalyticPhantom{
 		 * Polyethylene rods in the center. The real phantom can be equipped with 19
 		 * different materials 
 		*/
-		
+
 		// set inner rods to bone too
 		for(int i = 20; i < 28; i++) {
-			setRodMaterial(i, "iodine");
+			setRodMaterial(i, "bone");
 		}
 		
 		// set outer rods to bone
@@ -91,9 +99,36 @@ public class MECT extends AnalyticPhantom{
 			}
 		}
 		// for testing purposes set bullseye and nose to polyethylene
-		setRodMaterial(1, "Polyethylene");
-		setRodMaterial(2, "Polyethylene");
+		setRodMaterial(1, "bone");
+		setRodMaterial(2, "bone");
 		
+	}
+	
+	
+	/**
+	 * sets rods from hashmap
+	 * @param rods has to configure all rods by their identifier specified in setRodMaterial
+	 */
+	public MECT(HashMap<Integer, String> rods) {
+		PhysicalObject MECT = new PhysicalObject();
+		MECT.setMaterial(MaterialsDB.getMaterial("water"));
+		// create main ellipsiod object with dims 400x300x165 mm
+		Cylinder mainCylinder;
+		if(rods.size() == 16) {
+			mainCylinder = new Cylinder(x_outer_mm*scale_factor, y_outer_mm*scale_factor, z_mm*scale_factor);
+		}else if(rods.size() == 10){
+			mainCylinder = new Cylinder(x_inner_mm*scale_factor, y_inner_mm*scale_factor, z_mm*scale_factor);
+		}else {
+			System.err.print("[MECT] need to provide all rod materials. Assuming small Phantom size now...");
+			mainCylinder = new Cylinder(x_inner_mm*scale_factor, y_inner_mm*scale_factor, z_mm*scale_factor);
+		}
+		MECT.setShape(mainCylinder);
+		add(MECT); // add it to prioritizable scene
+		
+		// set all rods configured in constructor parameter
+		for(int key : rods.keySet()) {
+			setRodMaterial(key, rods.get(key));
+		}
 	}
 	
 	/**

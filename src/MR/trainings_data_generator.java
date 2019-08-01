@@ -23,12 +23,9 @@ import ij.ImageJ;
 
 class data_generator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
-	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data";
-	public static String CONFIG_FOLDER = "/home/mr/Documents/bachelor/data/config";
-	public static int X = 1240; // original resolution on the zeego detector in RSL is 1240x960 px
-	public static int Y = 960;
-	public static int NUMBER_OF_SAMPLES = 1;
-	public static int NUMBER_OF_MATERIALS = 2;
+	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data/simulation";
+	public static String CONFIG_FOLDER = DATA_FOLDER + "/config";
+	public static int NUMBER_OF_SAMPLES = 4;
 	
 	// system variables
 	private static File root;
@@ -60,6 +57,9 @@ class data_generator{
 		// generate config files
 		zeego.generateConfigFiles(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);
 		Grid3D mat, lowerEnergy, higherEnergy;
+		
+		// if there are already existing files, modify starting point
+		serial_number = 8;
 		
 		System.out.println("STARTING GENERATION OF " + NUMBER_OF_SAMPLES + " SAMPLES");
 		// lets get working baby!

@@ -18,12 +18,13 @@ import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.detector.MaterialPathLengthDetector;
 import edu.stanford.rsl.conrad.physics.detector.SimplePolychromaticDetector;
 import edu.stanford.rsl.conrad.physics.detector.XRayDetector;
+import edu.stanford.rsl.conrad.physics.materials.database.MaterialsDB;
 import edu.stanford.rsl.conrad.reconstruction.VOIBasedReconstructionFilter;
 
 
 public class zeego {
 	// DEFAULT CONFIG PATH
-	public static final String rootDirPath = "/home/mr/Documents/bachelor/CONRAD/src/MR/config_dir";
+	public static final String rootDirPath = "/home/mr/Documents/bachelor/data/simulation/config";
 	public static final String matConfFilename = "MAT.xml";		// relative to configDir
 	public static final String poly80ConfFilename = "POLY80.xml";
 	public static final String poly120ConfFilename = "POLY120.xml";
@@ -36,6 +37,7 @@ public class zeego {
 		// modify all necessary parameters and save configs for mat, poly80 and poly120
 		generateConfigFiles(rootDirPath, matConfFilename, poly80ConfFilename, poly120ConfFilename);
 		// to target folder
+		System.out.println("done!");
 	}
 	
 	/**
@@ -330,8 +332,7 @@ public class zeego {
 		}
 		// now create the spectrum with either 80 or 120 kv max voltage
 		PolychromaticXRaySpectrum s;
-		if(	t == projType.POLY80 	 || 
-			t == projType.POLY80n) {
+		if(	t == projType.POLY80 ) {
 			s = new PolychromaticXRaySpectrum(10, 150, 1, LOWER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
 		}else {
 			s = new PolychromaticXRaySpectrum(10, 150, 1, HIGHER_ENERGY, "W", 2.5, 1.2, 12, 0, 0, 0, 2.5);
