@@ -654,6 +654,14 @@ public abstract class DoubleArrayUtil {
 		revan += array[array.length-1];
 		return revan;
 	}
+	
+	public static double sum(double[] array) {
+		double sum = 0;
+		for(double d:array) {
+			sum += d;
+		}
+		return sum;
+	}
 
 }
 /*

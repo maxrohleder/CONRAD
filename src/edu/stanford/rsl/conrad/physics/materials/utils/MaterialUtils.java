@@ -37,7 +37,7 @@ public class MaterialUtils {
 	/**
 	 * Generates a new instance of material with given characteristics
 	 * @param name is  material identifier
-	 * @param density is material density
+	 * @param density is material density in what unit?? kg/m3? @rohleder
 	 * @param composition is atomic composition by weight of material
 	 * @return null if material cannot be created
 	 */

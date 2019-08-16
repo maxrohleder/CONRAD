@@ -65,5 +65,4 @@ public class CreateCustomMaterial {
 			MaterialsDB.put(iopromideSolution);
 		}
 	}
-
 }

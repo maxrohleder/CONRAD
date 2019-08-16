@@ -1,6 +1,7 @@
 package edu.stanford.rsl.conrad.phantom; 
 
 import java.util.HashMap;
+import java.util.Map;
 
 import edu.stanford.rsl.conrad.geometry.shapes.simple.Cylinder;
 import edu.stanford.rsl.conrad.geometry.transforms.Translation;
@@ -109,7 +110,7 @@ public class MECT extends AnalyticPhantom{
 	 * sets rods from hashmap
 	 * @param rods has to configure all rods by their identifier specified in setRodMaterial
 	 */
-	public MECT(HashMap<Integer, String> rods) {
+	public MECT(Map<Integer, String> rods) {
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
 		// create main ellipsiod object with dims 400x300x165 mm
