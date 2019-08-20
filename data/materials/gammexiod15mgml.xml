@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="11.0.4" class="java.beans.XMLDecoder">
+ <object class="edu.stanford.rsl.conrad.physics.materials.Material">
+  <void property="density">
+   <double>1.039</double>
+  </void>
+  <void property="name">
+   <string>gammexiod15mgml</string>
+  </void>
+  <void property="weightedAtomicComposition">
+   <object class="edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition" id="WeightedAtomicComposition0">
+    <void property="compositionTable">
+     <void method="put">
+      <string>B</string>
+      <double>0.0054055</double>
+     </void>
+     <void method="put">
+      <string>C</string>
+      <double>7.948218000000001</double>
+     </void>
+     <void method="put">
+      <string>Ca</string>
+      <double>0.5559999999999999</double>
+     </void>
+     <void method="put">
+      <string>Cl</string>
+      <double>0.046085</double>
+     </void>
+     <void method="put">
+      <string>H</string>
+      <double>0.083356638</double>
+     </void>
+     <void method="put">
+      <string>I</string>
+      <double>1.8781861560000002</double>
+     </void>
+     <void method="put">
+      <string>Mg</string>
+      <double>0.262494</double>
+     </void>
+     <void method="put">
+      <string>N</string>
+      <double>0.295611</double>
+     </void>
+     <void method="put">
+      <string>Na</string>
+      <double>0.03908299999999999</double>
+     </void>
+     <void method="put">
+      <string>O</string>
+      <double>2.8944</double>
+     </void>
+     <void method="put">
+      <string>Si</string>
+      <double>0.294945</double>
+     </void>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>

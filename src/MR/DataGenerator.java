@@ -21,16 +21,17 @@ import edu.stanford.rsl.conrad.utils.ImageUtil;
 import ij.ImageJ;
 
 
-class data_generator{
+class DataGenerator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
 	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data/simulation";
 	public static String CONFIG_FOLDER = DATA_FOLDER + "/config";
-	public static int NUMBER_OF_SAMPLES = 4;
+	public static int NUMBER_OF_SAMPLES = 1;
+	private static int serial_number = 2;
+
 	
 	// system variables
 	private static File root;
 	private static File conf;
-	private static int serial_number = 0;
 	
 	// File names
 	private static String MatConf = "MAT.xml";
@@ -58,13 +59,10 @@ class data_generator{
 		zeego.generateConfigFiles(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);
 		Grid3D mat, lowerEnergy, higherEnergy;
 		
-		// if there are already existing files, modify starting point
-		serial_number = 8;
-		
 		System.out.println("STARTING GENERATION OF " + NUMBER_OF_SAMPLES + " SAMPLES");
 		// lets get working baby!
 		for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
-			File sample_dir = next_folder();
+			File sample_dir = nextFolder();
 			
 			// use methods in phantom_creator to generate a new random phantom 
 			AnalyticPhantom phantom = phantom_creator.create_new_phantom(300, 400);
@@ -74,15 +72,15 @@ class data_generator{
 			
 			// create and save material path length projections
 			mat = p.computeMaterialGrids(phantom);
-			save_sample(mat, sample_dir, projType.MATERIAL);
+			saveSample(mat, sample_dir, projType.MATERIAL);
 			
 			// lower energy projections
 			lowerEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY80);
-			save_sample(lowerEnergy, sample_dir, projType.POLY80);
+			saveSample(lowerEnergy, sample_dir, projType.POLY80);
 
 			// lower energy projections
 			higherEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY120);
-			save_sample(higherEnergy, sample_dir, projType.POLY120);
+			saveSample(higherEnergy, sample_dir, projType.POLY120);
 			}
 		System.out.println("GENERATED " + NUMBER_OF_SAMPLES + " SAMPLES");
 		new ImageJ();
@@ -93,7 +91,7 @@ class data_generator{
 	 * @param millies timestamp to create folder of
 	 * @return Path object containing a newly created directory according to current time
 	 */
-	private static File next_folder() {
+	private static File nextFolder() {
 		// packs current time in wrapper class
 		Calendar creation_time = Calendar.getInstance();
 		DateFormat dateFormat = new SimpleDateFormat("MMddHHmmss");
@@ -107,13 +105,17 @@ class data_generator{
 	}
 
 
-	private static void save_sample(Grid3D data, File folder, projType p) {
+	private static void saveSample(Grid3D data, File folder, projType p) {
 		File filename = null;
 		String rawSizeFormat = data.getSize()[0] + "x" + data.getSize()[1] + "x" + data.getSize()[2];
 		if(p == projType.MATERIAL) {
 			if(data.getSubGrid(0) instanceof MultiChannelGrid2D) {
-				int numChannels = ((MultiChannelGrid2D) data.getSubGrid(0)).getNumberOfChannels();
 				int s[] = data.getSize();
+
+				Grid3D water = new Grid3D(s[0], s[1], s[2]);
+				Grid3D iodine = new Grid3D(s[0], s[1], s[2]);
+
+				int numChannels = ((MultiChannelGrid2D) data.getSubGrid(0)).getNumberOfChannels();
 				Grid3D splitted = new Grid3D(s[0], s[1], s[2]);
 				for(int c = 0; c < numChannels; ++c) {
 					for (int z = 0; z < data.getSize()[2]; z++) {
@@ -121,12 +123,14 @@ class data_generator{
 						assert (!(channelc instanceof MultiChannelGrid2D)); // avoid recursion deadlock
 						splitted.setSubGrid(z, channelc);
 					}
-					// recursively save channels in new folders
-					File f = new File(folder, ((MultiChannelGrid2D) data.getSubGrid(0)).getChannelNames()[c]);
-					if(f.mkdirs()) save_sample(splitted, f, p);
+					// split all materials on water and iodine
+					split(water, iodine, splitted, ((MultiChannelGrid2D)data.getSubGrid(0)).getChannelNames()[c]);
 				}
-				// dont save the Grid3D with all channels
-				return;
+				File waterFolder = new File(folder, "water");
+				File iodineFolder = new File(folder, "iodine");
+				if(waterFolder.mkdirs()) saveSample(water, waterFolder, p);
+				if(iodineFolder.mkdirs()) saveSample(iodine, iodineFolder, p);
+				return; // nothing to save.
 			} else {
 				filename = new File(folder, "MAT_"+rawSizeFormat+".raw");
 			}
@@ -138,4 +142,37 @@ class data_generator{
 		ImageUtil.saveAs(data, filename.getAbsolutePath());
 	}
 
+	private static void split(Grid3D water, Grid3D iodine, Grid3D splitted, String material) {
+		assert (water.getSize() == iodine.getSize() && water.getSize() == splitted.getSize());
+	    int s[] = water.getSize();
+		if(material.toLowerCase().contains("iod")) {
+			System.out.println("adding " + material + " to iod image");
+			float concentrationNormalizationFactor = phantom_creator.decodeConcentrationFromName(material);
+			for (int i = 0; i < s[0]; i++) {
+				for (int j = 0; j < s[1]; j++) {
+					for (int k = 0; k < s[2]; k++) {
+						iodine.addAtIndex(i, j, k, concentrationNormalizationFactor*splitted.getAtIndex(i, j, k));
+					}	
+				}	
+			}
+		} 
+		else if(material.toLowerCase().contains("water")) {
+			System.out.println("adding " + material + " to water image");
+			for (int i = 0; i < s[0]; i++) {
+				for (int j = 0; j < s[1]; j++) {
+					for (int k = 0; k < s[2]; k++) {
+						water.addAtIndex(i, j, k, splitted.getAtIndex(i, j, k));
+					}	
+				}	
+			}
+		}
+		else if(material.toLowerCase().contains("calcium")){
+			System.err.println("tried to map calcium on iodine and water");
+			System.exit(0);
+		}
+		else {
+			System.err.println("unrecognised material: " + material);
+			System.exit(0);
+		}
+	}
 }

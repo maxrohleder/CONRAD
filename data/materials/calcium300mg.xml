@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="11.0.4" class="java.beans.XMLDecoder">
+ <object class="edu.stanford.rsl.conrad.physics.materials.Material">
+  <void property="density">
+   <double>1.548</double>
+  </void>
+  <void property="name">
+   <string>calcium300mg</string>
+  </void>
+  <void property="weightedAtomicComposition">
+   <object class="edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition" id="WeightedAtomicComposition0">
+    <void property="compositionTable">
+     <void method="put">
+      <string>Ca</string>
+      <double>12.0</double>
+     </void>
+     <void method="put">
+      <string>H</string>
+      <double>1.411116</double>
+     </void>
+     <void method="put">
+      <string>O</string>
+      <double>11.2</double>
+     </void>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>
