@@ -16,38 +16,49 @@ import java.util.Arrays;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 import edu.stanford.rsl.conrad.phantom.MECT;
 import edu.stanford.rsl.conrad.physics.PhysicalObject;
+import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.materials.Element;
 import edu.stanford.rsl.conrad.physics.materials.Material;
 import edu.stanford.rsl.conrad.physics.materials.Mixture;
 import edu.stanford.rsl.conrad.physics.materials.database.MaterialsDB;
 import edu.stanford.rsl.conrad.physics.materials.utils.MaterialUtils;
 import edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition;
+import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.DoubleArrayUtil;
+import edu.stanford.rsl.conrad.utils.VisualizationUtil;
 import edu.stanford.rsl.tutorial.RotationalAngiography.ResidualMotionCompensation.registration.bUnwarpJ_.IODialog;
+import ij.gui.Plot;
 
 class phantom_creator {
 	public static void main(String args[]) {
-		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
-		double[] solidWater = 	{ 0.0841, 0.1849, 0.6697, 0.0216, 0.0013, 0.0143, 0.0000, 0.0108, 0.0005, 0.0017, 0.0110, 0.0000 };
-		double[] iod5mg =  		{ 0.0837, 0.1839, 0.6668, 0.0214, 0.0013, 0.0142, 0.0050, 0.0107, 0.0005, 0.0017, 0.0110, 0.0000 };
-		double[] iod10mg = 		{ 0.0832, 0.1824, 0.6643, 0.0212, 0.0013, 0.0140, 0.0099, 0.0106, 0.0005, 0.0017, 0.0109, 0.0000 };
-		double[] iod15mg = 		{ 0.0827, 0.1809, 0.6618, 0.0211, 0.0013, 0.0139, 0.0148, 0.0105, 0.0005, 0.0017, 0.0108, 0.0000 };
-		double[] calcium50mg =  { 0.0709, 0.2307, 0.6267, 0.0270, 0.0012, 0.0436};
-		double[] calcium100mg = { 0.0633, 0.2574, 0.5724, 0.0241, 0.0010, 0.0818};
-		double[] calcium300mg = { 0.0403, 0.3381, 0.4080, 0.0154, 0.0007, 0.1976};
-		double[] deltaIod5mg = 	{ -0.0004, -0.0010, -0.0029, -0.0002, 0.0000, -0.0001, 0.0050, -0.0001, 0.0000, 0.0000, 0.0000, 0.0000 };
 
-		// adding custom materials to the DB
-		putCustomMaterials();		
+		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine5mg"));
+		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine10mg"));
+		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine15mg"));
+		MaterialBasisTransform(0, MaterialsDB.getMaterial("water"));
+		MaterialBasisTransform(0, MaterialsDB.getMaterial("solidwater"));
 		
-		String[] HO = { "H", "O" };
-		double[] H2O = { 0.2, 0.8 };
-		double zeff_H2O = zeff(HO, H2O);
-		double zeff_Material_H2O = zeff(MaterialsDB.getMaterial("water"));
-		double zeff_solidWater = zeff(elements, solidWater);
-		double zeff_Material_solidWater = zeff(MaterialsDB.getMaterial("solidWater"));
-		System.out.println("Z own:\t\t" + zeff_H2O + "\nZ matDB:\t" + zeff_Material_H2O + 
-						"\nZ solid water:\t" + zeff_solidWater + "\nZ matDB sWater:\t" + zeff_Material_solidWater);
+		//		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
+//		double[] solidWater = 	{ 0.0841, 0.1849, 0.6697, 0.0216, 0.0013, 0.0143, 0.0000, 0.0108, 0.0005, 0.0017, 0.0110, 0.0000 };
+//		double[] iod5mg =  		{ 0.0837, 0.1839, 0.6668, 0.0214, 0.0013, 0.0142, 0.0050, 0.0107, 0.0005, 0.0017, 0.0110, 0.0000 };
+//		double[] iod10mg = 		{ 0.0832, 0.1824, 0.6643, 0.0212, 0.0013, 0.0140, 0.0099, 0.0106, 0.0005, 0.0017, 0.0109, 0.0000 };
+//		double[] iod15mg = 		{ 0.0827, 0.1809, 0.6618, 0.0211, 0.0013, 0.0139, 0.0148, 0.0105, 0.0005, 0.0017, 0.0108, 0.0000 };
+//		double[] calcium50mg =  { 0.0709, 0.2307, 0.6267, 0.0270, 0.0012, 0.0436};
+//		double[] calcium100mg = { 0.0633, 0.2574, 0.5724, 0.0241, 0.0010, 0.0818};
+//		double[] calcium300mg = { 0.0403, 0.3381, 0.4080, 0.0154, 0.0007, 0.1976};
+//		double[] deltaIod5mg = 	{ -0.0004, -0.0010, -0.0029, -0.0002, 0.0000, -0.0001, 0.0050, -0.0001, 0.0000, 0.0000, 0.0000, 0.0000 };
+//
+//		// adding custom materials to the DB
+//		putCustomMaterials();		
+//		
+//		String[] HO = { "H", "O" };
+//		double[] H2O = { 0.2, 0.8 };
+//		double zeff_H2O = zeff(HO, H2O);
+//		double zeff_Material_H2O = zeff(MaterialsDB.getMaterial("water"));
+//		double zeff_solidWater = zeff(elements, solidWater);
+//		double zeff_Material_solidWater = zeff(MaterialsDB.getMaterial("solidWater"));
+//		System.out.println("Z own:\t\t" + zeff_H2O + "\nZ matDB:\t" + zeff_Material_H2O + 
+//						"\nZ solid water:\t" + zeff_solidWater + "\nZ matDB sWater:\t" + zeff_Material_solidWater);
 		
 		// actuall experiments
 //		double zeff_gammexiod5mg = zeff(elements, iod5mg);
@@ -138,6 +149,14 @@ class phantom_creator {
 		return conf;
 	}
 
+	/**
+	 * adds the following materials to the MaterialsDB:
+	 * solidwater
+	 * gammexiod5mgml, gammexiod10mgml, gammexiod15mgml
+	 * iodine5mg, iodine10mg, iodine15mg
+	 * gammexcalcium50mgml, gammexcalcium100mgml, gammexcalcium300mgml
+	 * calcium50mg, calcium100mg, calcium300mg
+	 */
 	private static void putCustomMaterials() {
         List<String> existingMaterials = Arrays.asList(MaterialsDB.getMaterials());
 		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
@@ -268,32 +287,9 @@ class phantom_creator {
 		}
 		System.out.println("new materials inserted into database: " + newlyCreated);
 	}
-	
-	/**
-	 * gives the concentration of material, to norm to. We want to normalize to 1 mg/ml as being the unit concentration.
-	 * So that after reconstruction of the iodine projections, we will see have mg/ml as unit for the pixel values.
-	 * @param material
-	 * @return
-	 */
-	public static float decodeConcentrationFromName(String material) {
-		if(material.contentEquals("iodine5mg") || material.contentEquals("gammexiod5mgml")) {
-			return 5.0f;
-		} else if(material.contentEquals("iodine10mg") || material.contentEquals("gammexiod10mgml")) {
-			return 10.0f;
-		} else if(material.contentEquals("iodine15mg") || material.contentEquals("gammexiod15mgml")) {
-			return 15.0f;
-		}else if(material.contentEquals("iodine")) {
-			return 1.0f;
-		} else {
-			System.err.println("unknown material " + material);
-			System.exit(0);
-			return 0;
-		}
-	}
 
 	/**
 	 * calculates the rough effective Z number for compound materials
-	 * 
 	 * @param elements    constituent elements
 	 * @param percentages element wise percentages. Must sum up to one.
 	 * @return effective Z of compound
@@ -310,7 +306,7 @@ class phantom_creator {
 	
 	/**
 	 * calculates the rough effective Z number for mixtures
-	 * 
+	 * formular from https://en.wikipedia.org/wiki/Effective_atomic_number 
 	 * @param elements    constituent elements
 	 * @param percentages element wise percentages. Must sum up to one.
 	 * @return effective Z of compound
@@ -338,4 +334,72 @@ class phantom_creator {
 		}
 		return DoubleArrayUtil.sum(wac.values().stream().mapToDouble(Double::doubleValue).toArray());
 	}
+	
+	/**
+	 * gives the concentration of material, to norm to. We want to normalize to 1 mg/ml as being the unit concentration.
+	 * So that after reconstruction of the iodine projections, we will see have mg/ml as unit for the pixel values.
+	 * @param material
+	 * @return
+	 */
+	public static float decodeIodineConcentrationFromName(String material) {
+		if(material.contentEquals("iodine5mg") || material.contentEquals("gammexiod5mgml")) {
+			return 0.005f;
+		} else if(material.contentEquals("iodine10mg") || material.contentEquals("gammexiod10mgml")) {
+			return 0.01f;
+		} else if(material.contentEquals("iodine15mg") || material.contentEquals("gammexiod15mgml")) {
+			return 0.015f;
+		}else if(material.contentEquals("iodine")) {
+			return 1.0f;
+		} else {
+			System.err.println("unknown material " + material);
+			System.exit(0);
+			return 0;
+		}
+	}
+
+	/**
+	 * express a material of linear combination of iodine and water
+	 * @param pixelValue 	denoting the pathlengths of a material
+	 * @param materialName	As listed in materialsDB
+	 * @return				A weigthing for iodine and water to archieve the same Zeff
+	 */
+	public static float[] MaterialBasisTransform(float pixelValue, String materialName) {
+		float percentIodine = 0, percentWater = 1;
+		if(materialName.contains("iod") || materialName.contains("calcium")) {
+			percentIodine = decodeIodineConcentrationFromName(materialName);
+			//percentIodine = 1; // overriding that for now. change later!! TODO
+			percentWater = 1 - percentIodine;
+		} 
+		return new float[] {percentIodine*pixelValue, percentWater*pixelValue};
+	}
+	
+	/**
+	 * express a material of linear combination of iodine and water
+	 * @param pixelValue 	denoting the pathlengths of a material
+	 * @param materialName	As listed in materialsDB
+	 * @return				A weigthing for iodine and water to archieve the same Zeff
+	 */
+	public static float[] MaterialBasisTransform(float pixelValue, Material m) {
+		Material w = MaterialsDB.getMaterial("water");
+		Material iod = MaterialsDB.getMaterial("iodine");
+		PolychromaticAbsorptionModel mo = spectrum_creator.configureAbsorbtionModel(projType.POLY80);
+		double[] att = mo.getAttenuationCoefficients(m);
+		Plot attenuationCurve = VisualizationUtil.createPlot(m.getName(), att);
+		attenuationCurve.show();
+		return null;
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

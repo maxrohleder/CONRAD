@@ -7,15 +7,23 @@ import java.sql.Date;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.hamcrest.core.IsInstanceOf;
 
 import IceInternal.Time;
+import MR.projector.ParrallelFilteringThread;
 import edu.stanford.rsl.conrad.data.numeric.Grid2D;
 import edu.stanford.rsl.conrad.data.numeric.Grid3D;
 import edu.stanford.rsl.conrad.data.numeric.MultiChannelGrid2D;
+import edu.stanford.rsl.conrad.parallel.ParallelThread;
+import edu.stanford.rsl.conrad.parallel.ParallelThreadExecutor;
+import edu.stanford.rsl.conrad.parallel.ParallelizableRunnable;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
+import edu.stanford.rsl.conrad.utils.CONRAD;
 import edu.stanford.rsl.conrad.utils.Configuration;
 import edu.stanford.rsl.conrad.utils.ImageUtil;
 import ij.ImageJ;
@@ -26,7 +34,7 @@ class DataGenerator{
 	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data/simulation";
 	public static String CONFIG_FOLDER = DATA_FOLDER + "/config";
 	public static int NUMBER_OF_SAMPLES = 1;
-	private static int serial_number = 2;
+	private static int serial_number = 5;
 
 	
 	// system variables
@@ -72,15 +80,15 @@ class DataGenerator{
 			
 			// create and save material path length projections
 			mat = p.computeMaterialGrids(phantom);
-			saveSample(mat, sample_dir, projType.MATERIAL);
+			saveSample(mat, sample_dir, p, projType.MATERIAL);
 			
 			// lower energy projections
 			lowerEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY80);
-			saveSample(lowerEnergy, sample_dir, projType.POLY80);
+			saveSample(lowerEnergy, sample_dir, p, projType.POLY80);
 
 			// lower energy projections
 			higherEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY120);
-			saveSample(higherEnergy, sample_dir, projType.POLY120);
+			saveSample(higherEnergy, sample_dir, p, projType.POLY120);
 			}
 		System.out.println("GENERATED " + NUMBER_OF_SAMPLES + " SAMPLES");
 		new ImageJ();
@@ -105,31 +113,20 @@ class DataGenerator{
 	}
 
 
-	private static void saveSample(Grid3D data, File folder, projType p) {
+	private static void saveSample(Grid3D data, File folder, projector pro, projType p) {
 		File filename = null;
 		String rawSizeFormat = data.getSize()[0] + "x" + data.getSize()[1] + "x" + data.getSize()[2];
 		if(p == projType.MATERIAL) {
 			if(data.getSubGrid(0) instanceof MultiChannelGrid2D) {
 				int s[] = data.getSize();
-
 				Grid3D water = new Grid3D(s[0], s[1], s[2]);
 				Grid3D iodine = new Grid3D(s[0], s[1], s[2]);
-
-				int numChannels = ((MultiChannelGrid2D) data.getSubGrid(0)).getNumberOfChannels();
-				Grid3D splitted = new Grid3D(s[0], s[1], s[2]);
-				for(int c = 0; c < numChannels; ++c) {
-					for (int z = 0; z < data.getSize()[2]; z++) {
-						Grid2D channelc = ((MultiChannelGrid2D) data.getSubGrid(z)).getChannel(c);
-						assert (!(channelc instanceof MultiChannelGrid2D)); // avoid recursion deadlock
-						splitted.setSubGrid(z, channelc);
-					}
-					// split all materials on water and iodine
-					split(water, iodine, splitted, ((MultiChannelGrid2D)data.getSubGrid(0)).getChannelNames()[c]);
-				}
+				// map the channel information onto water and iodine parts
+				pro.split(water, iodine, data);
 				File waterFolder = new File(folder, "water");
 				File iodineFolder = new File(folder, "iodine");
-				if(waterFolder.mkdirs()) saveSample(water, waterFolder, p);
-				if(iodineFolder.mkdirs()) saveSample(iodine, iodineFolder, p);
+				if(waterFolder.mkdirs()) saveSample(water, waterFolder, pro, p);
+				if(iodineFolder.mkdirs()) saveSample(iodine, iodineFolder, pro, p);
 				return; // nothing to save.
 			} else {
 				filename = new File(folder, "MAT_"+rawSizeFormat+".raw");
@@ -142,37 +139,5 @@ class DataGenerator{
 		ImageUtil.saveAs(data, filename.getAbsolutePath());
 	}
 
-	private static void split(Grid3D water, Grid3D iodine, Grid3D splitted, String material) {
-		assert (water.getSize() == iodine.getSize() && water.getSize() == splitted.getSize());
-	    int s[] = water.getSize();
-		if(material.toLowerCase().contains("iod")) {
-			System.out.println("adding " + material + " to iod image");
-			float concentrationNormalizationFactor = phantom_creator.decodeConcentrationFromName(material);
-			for (int i = 0; i < s[0]; i++) {
-				for (int j = 0; j < s[1]; j++) {
-					for (int k = 0; k < s[2]; k++) {
-						iodine.addAtIndex(i, j, k, concentrationNormalizationFactor*splitted.getAtIndex(i, j, k));
-					}	
-				}	
-			}
-		} 
-		else if(material.toLowerCase().contains("water")) {
-			System.out.println("adding " + material + " to water image");
-			for (int i = 0; i < s[0]; i++) {
-				for (int j = 0; j < s[1]; j++) {
-					for (int k = 0; k < s[2]; k++) {
-						water.addAtIndex(i, j, k, splitted.getAtIndex(i, j, k));
-					}	
-				}	
-			}
-		}
-		else if(material.toLowerCase().contains("calcium")){
-			System.err.println("tried to map calcium on iodine and water");
-			System.exit(0);
-		}
-		else {
-			System.err.println("unrecognised material: " + material);
-			System.exit(0);
-		}
-	}
 }
+	

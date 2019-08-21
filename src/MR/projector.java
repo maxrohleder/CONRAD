@@ -10,6 +10,7 @@ import edu.stanford.rsl.conrad.geometry.trajectories.Trajectory;
 import edu.stanford.rsl.conrad.opencl.OpenCLMaterialPathLengthPhantomRenderer;
 import edu.stanford.rsl.conrad.opencl.OpenCLProjectionPhantomRenderer;
 import edu.stanford.rsl.conrad.opencl.OpenCLUtil;
+import edu.stanford.rsl.conrad.parallel.ParallelThread;
 import edu.stanford.rsl.conrad.parallel.ParallelThreadExecutor;
 import edu.stanford.rsl.conrad.parallel.ParallelizableRunnable;
 import edu.stanford.rsl.conrad.parallel.SimpleParallelThread;
@@ -32,7 +33,10 @@ import java.io.File;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 import com.jogamp.opencl.CLBuffer;
 import com.jogamp.opencl.CLContext;
@@ -88,7 +92,7 @@ class projector{
 	public OpenCLMaterialPathLengthPhantomRenderer gpu_mat_renderer;
 	
 	/**
-	 * parallelization class for faster polychromatic filtering (12x faster)
+	 * parallelization class for faster polychromatic filtering (maxThreads faster)
 	 * @author rohleder
 	 */
 	class ParrallelFilteringThread extends SimpleParallelThread{
@@ -124,7 +128,63 @@ class projector{
 			}
 		}
 	}
+	
+	/**
+	 * parallelization class for faster decomposition of material path length images in water and iodine
+	 * @author rohleder
+	 */
+	class ParrallelSplittingThread extends ParallelThread{
+		Grid3D data;
+		Grid3D w;
+		Grid3D iod;
+		String materialName;
+		Semaphore writeControl;
+		int[] cnums;
+		int[] s;
 
+		public ParrallelSplittingThread(Grid3D in, Grid3D water, Grid3D iodine, int[] channels, String matName, Semaphore write) {
+			this.data = in;
+			this.s = in.getSize();
+			this.w = water;
+			this.iod = iodine;
+			this.materialName = matName; // only for identification of thread
+			this.writeControl = write;
+			this.cnums = channels;
+		}
+		
+		@Override
+		public String getProcessName() {
+			return "MaterialSplittingThread for " + this.materialName;
+		}
+
+		@Override
+		public void execute() {
+			// Typically just one channel per worker, but written this way for machines with few cores or applications with many materials
+			for(int c: cnums) {
+				String material = ((MultiChannelGrid2D) data.getSubGrid(0)).getChannelNames()[c];
+				for (int z = 0; z < this.s[2]; z++) {
+					Grid2D channelc = ((MultiChannelGrid2D) data.getSubGrid(z)).getChannel(c);	
+					for (int i = 0; i < this.s[0]; i++) {
+						for (int j = 0; j < this.s[1]; j++) {
+							// represent material as iodine and water based on their attenuation behavior
+							float[] bases = phantom_creator.MaterialBasisTransform(channelc.getAtIndex(i, j), material);
+							if(bases[0] != 0 || bases[1] != 0) {
+								try {
+									this.writeControl.acquire();
+									this.iod.addAtIndex(i, j, z, bases[0]);
+									this.w.addAtIndex(i, j, z, bases[1]);
+									this.writeControl.release();
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+						}	
+					}
+				}
+				System.out.print(".");
+			}
+		}
+	}
 	
 	/**
 	 * creates a wrapper around MaterialPathLengthRenderer, which enables easy filtering to 
@@ -234,6 +294,42 @@ class projector{
 		}
 		
 		return attenuationBasedProjections;
+	}
+	
+
+	public void split(Grid3D water, Grid3D iodine, Grid3D data) {
+		System.out.println("splitting the material images in parrallel");
+		// split the work into numThreads pieces
+		int numChannels = ((MultiChannelGrid2D) data.getSubGrid(0)).getNumberOfChannels();
+		int numWorkers = (CONRAD.getNumberOfThreads()<numChannels) ? CONRAD.getNumberOfThreads() : numChannels;
+		
+		ParallelizableRunnable [] workloadPartitions = new ParallelizableRunnable[numWorkers];
+		Semaphore writeCtl = new Semaphore(1);
+		for (int j= 0; j<numWorkers; j++) {
+			int[] channelsToWorkOn;
+			String matString = ""; // only needed to name the working thread
+			if(numChannels == numWorkers) {
+				channelsToWorkOn = new int[] {j};
+				matString += ((MultiChannelGrid2D) data.getSubGrid(0)).getChannelNames()[j];
+			}else {
+				List<Integer> ctwo = new LinkedList<Integer>();
+				for(int i = j; j<numChannels; j += numWorkers) {
+					ctwo.add(i);
+					matString += ((MultiChannelGrid2D) data.getSubGrid(0)).getChannelNames()[j];
+				}
+				channelsToWorkOn = ctwo.stream().mapToInt(Integer::intValue).toArray();
+			}
+			workloadPartitions[j] = new ParrallelSplittingThread(data, water, iodine, channelsToWorkOn, matString, writeCtl);
+		}
+		ParallelThreadExecutor workdistributor = new ParallelThreadExecutor(workloadPartitions);
+		
+		try {
+			workdistributor.execute();
+			System.out.println("done");
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	
