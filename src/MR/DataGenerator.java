@@ -34,7 +34,7 @@ class DataGenerator{
 	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data/simulation";
 	public static String CONFIG_FOLDER = DATA_FOLDER + "/config";
 	public static int NUMBER_OF_SAMPLES = 1;
-	private static int serial_number = 5;
+	private static int serial_number = 1;
 
 	
 	// system variables
@@ -73,7 +73,8 @@ class DataGenerator{
 			File sample_dir = nextFolder();
 			
 			// use methods in phantom_creator to generate a new random phantom 
-			AnalyticPhantom phantom = phantom_creator.create_new_phantom(300, 400);
+//			AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
+			AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
 			
 			// initialize the projector from files
 			projector p = new projector(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);

@@ -13,14 +13,29 @@ import static java.util.Map.entry;
 
 import java.util.Arrays;
 
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Box;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Cone;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Cylinder;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Ellipsoid;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Pyramid;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.SimpleSurface;
+import edu.stanford.rsl.conrad.geometry.shapes.simple.Sphere;
+import edu.stanford.rsl.conrad.geometry.transforms.ComboTransform;
+import edu.stanford.rsl.conrad.geometry.transforms.ScaleRotate;
+import edu.stanford.rsl.conrad.geometry.transforms.Transform;
+import edu.stanford.rsl.conrad.geometry.transforms.Translation;
+import edu.stanford.rsl.conrad.numerics.SimpleMatrix;
 import edu.stanford.rsl.conrad.phantom.AnalyticPhantom;
 import edu.stanford.rsl.conrad.phantom.MECT;
+import edu.stanford.rsl.conrad.phantom.RandomPhantom;
 import edu.stanford.rsl.conrad.physics.PhysicalObject;
 import edu.stanford.rsl.conrad.physics.absorption.PolychromaticAbsorptionModel;
 import edu.stanford.rsl.conrad.physics.materials.Element;
 import edu.stanford.rsl.conrad.physics.materials.Material;
 import edu.stanford.rsl.conrad.physics.materials.Mixture;
 import edu.stanford.rsl.conrad.physics.materials.database.MaterialsDB;
+import edu.stanford.rsl.conrad.physics.materials.utils.AttenuationRetrievalMode;
+import edu.stanford.rsl.conrad.physics.materials.utils.AttenuationType;
 import edu.stanford.rsl.conrad.physics.materials.utils.MaterialUtils;
 import edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition;
 import edu.stanford.rsl.conrad.utils.Configuration;
@@ -30,13 +45,11 @@ import edu.stanford.rsl.tutorial.RotationalAngiography.ResidualMotionCompensatio
 import ij.gui.Plot;
 
 class phantom_creator {
+	
 	public static void main(String args[]) {
-
-		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine5mg"));
-		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine10mg"));
-		MaterialBasisTransform(0, MaterialsDB.getMaterial("iodine15mg"));
-		MaterialBasisTransform(0, MaterialsDB.getMaterial("water"));
-		MaterialBasisTransform(0, MaterialsDB.getMaterial("solidwater"));
+		putCustomMaterials();
+		
+//		plotRelevantAttenuationCurves();
 		
 		//		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
 //		double[] solidWater = 	{ 0.0841, 0.1849, 0.6697, 0.0216, 0.0013, 0.0143, 0.0000, 0.0108, 0.0005, 0.0017, 0.0110, 0.0000 };
@@ -109,13 +122,24 @@ class phantom_creator {
 		    entry("Na", 11),
 		    entry("Mg", 12),
 		    entry("Fe", 26));
-    
+
+	// found these out by sampling calcium, iodine and water attenuations from nist at 80 and 120 keV 
+	// and matching the calcium attenuation with a linear combination of water and iodine
+	// 1cm calcium ~ 0.06cm iodine + 0.81cm water
+	private static final float[] calciumCoeff = new float[] {0.0615f, 0.8139f};
+
 	// creates new random phantom in bounds given
-	public static AnalyticPhantom create_new_phantom(int x_bound, int y_bound) {
+	public static AnalyticPhantom createRandomPhantom(int x_bound, int y_bound, int z_bound) {
+		// asserts all materials exist in database
+		putCustomMaterials();
+		return new RandomPhantom(x_bound, y_bound, z_bound);
+	}
+	
+	// creates new random phantom in bounds given
+	public static AnalyticPhantom getEvaluationPhantom() {
 		// TODO Add capability of creating random geometries
 		//Map<Integer, String> rodConfiguration = getBoneConfig();
 		Map<Integer, String> rodConfiguration = getComparisonConfig();
-
 		return new MECT(rodConfiguration);
 	}
 
@@ -161,6 +185,17 @@ class phantom_creator {
         List<String> existingMaterials = Arrays.asList(MaterialsDB.getMaterials());
 		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
 		int newlyCreated = 0;
+		// add 2 mg/ml iodine rod insert material. TODO find out density
+		if(!existingMaterials.contains("gammexiod2mgml")) {
+			double[] iod2mg =  		{ 0.0840, 0.1847, 0.6683, 0.0215, 0.0013, 0.0142, 0.0020, 0.0107, 0.0005, 0.0017, 0.0110, 0.0000 };
+			WeightedAtomicComposition iodine2mg = new WeightedAtomicComposition();
+			for (int i = 0; i < elements.length; i++) {
+				if(iod2mg[i] > 0) iodine2mg.add(elements[i], iod2mg[i]);
+			}
+			Material GammexIod5mg = MaterialUtils.newMaterial("gammexiod2mgml", 1.027, iodine2mg);
+			MaterialsDB.put(GammexIod5mg);
+			++newlyCreated;
+		}
 		// add 5 mg/ml iodine rod insert material. TODO find out density
 		if(!existingMaterials.contains("gammexiod5mgml")) {
 			double[] iod5mg =  		{ 0.0837, 0.1839, 0.6668, 0.0214, 0.0013, 0.0142, 0.0050, 0.0107, 0.0005, 0.0017, 0.0110, 0.0000 };
@@ -195,10 +230,18 @@ class phantom_creator {
 			++newlyCreated;
 		}
 		// add 5 mg/ml iodine in water mixture
+		if(!existingMaterials.contains("iodine2mg")) {
+			WeightedAtomicComposition iodine2mgtowater = new WeightedAtomicComposition("H2O", 0.9980);
+			iodine2mgtowater.add("I", 0.0020);
+			Material iodine5mg = MaterialUtils.newMaterial("iodine2mg", 1.027, iodine2mgtowater);
+			MaterialsDB.put(iodine5mg);
+			++newlyCreated;
+		}	
+		// add 5 mg/ml iodine in water mixture
 		if(!existingMaterials.contains("iodine5mg")) {
 			WeightedAtomicComposition iodine5mgtowater = new WeightedAtomicComposition("H2O", 0.9950);
 			iodine5mgtowater.add("I", 0.0050);
-			Material iodine5mg = MaterialUtils.newMaterial("iodine5mg", 1.0, iodine5mgtowater);
+			Material iodine5mg = MaterialUtils.newMaterial("iodine5mg", 1.030, iodine5mgtowater);
 			MaterialsDB.put(iodine5mg);
 			++newlyCreated;
 		}	
@@ -206,7 +249,7 @@ class phantom_creator {
 		if(!existingMaterials.contains("iodine10mg")) {
 			WeightedAtomicComposition iodine10mgtowater = new WeightedAtomicComposition("H2O", 0.9900);
 			iodine10mgtowater.add("I", 0.0100);
-			Material iodine10mg = MaterialUtils.newMaterial("iodine10mg", 1.0, iodine10mgtowater);
+			Material iodine10mg = MaterialUtils.newMaterial("iodine10mg", 1.034, iodine10mgtowater);
 			MaterialsDB.put(iodine10mg);
 			++newlyCreated;
 		}	
@@ -214,7 +257,7 @@ class phantom_creator {
 		if(!existingMaterials.contains("iodine15mg")) {
 			WeightedAtomicComposition iodine15mgtowater = new WeightedAtomicComposition("H2O", 0.9850);
 			iodine15mgtowater.add("I", 0.0150);
-			Material iodine15mg = MaterialUtils.newMaterial("iodine15mg", 1.0, iodine15mgtowater);
+			Material iodine15mg = MaterialUtils.newMaterial("iodine15mg", 1.039, iodine15mgtowater);
 			MaterialsDB.put(iodine15mg);
 			++newlyCreated;
 		}	
@@ -273,7 +316,7 @@ class phantom_creator {
 		if(!existingMaterials.contains("calcium100mg")) {
 			WeightedAtomicComposition ca = new WeightedAtomicComposition("H2O", 0.9000);
 			ca.add("Ca", 0.1000);
-			Material caM = MaterialUtils.newMaterial("calcium100mg", 1.2440, ca);
+			Material caM = MaterialUtils.newMaterial("calcium100mg", 1.244, ca);
 			MaterialsDB.put(caM);
 			++newlyCreated;
 		}	
@@ -339,38 +382,49 @@ class phantom_creator {
 	 * gives the concentration of material, to norm to. We want to normalize to 1 mg/ml as being the unit concentration.
 	 * So that after reconstruction of the iodine projections, we will see have mg/ml as unit for the pixel values.
 	 * @param material
-	 * @return
+	 * @return float [] {iodinepathlength, waterpathlength}
 	 */
-	public static float decodeIodineConcentrationFromName(String material) {
-		if(material.contentEquals("iodine5mg") || material.contentEquals("gammexiod5mgml")) {
-			return 0.005f;
+	public static float[] decodeIodineConcentrationFromName(String material) {
+		if(material.contentEquals("calcium")) {
+			System.err.println("use discouraged as pure calcium does not exist");
+			return calciumCoeff;
+		} else if(material.contentEquals("iodine")) {
+			System.err.println("use discouraged as pure iodine does not exist");
+			return new float[] {1.0f, 0.0f};
+		} else if(material.contentEquals("water")|| material.contentEquals("solidwater")) {
+			return new float[] {0.0f, 1.0f};
+		} else if(material.contentEquals("iodine2mg") || material.contentEquals("gammexiod2mgml")) {
+			return new float[] {0.002f, 0.998f};
+		} else if(material.contentEquals("iodine5mg") || material.contentEquals("gammexiod5mgml")) {
+			return new float[] {0.005f, 0.995f};
 		} else if(material.contentEquals("iodine10mg") || material.contentEquals("gammexiod10mgml")) {
-			return 0.01f;
+			return new float[] {0.01f, 0.99f};
 		} else if(material.contentEquals("iodine15mg") || material.contentEquals("gammexiod15mgml")) {
-			return 0.015f;
-		}else if(material.contentEquals("iodine")) {
-			return 1.0f;
+			return new float[] {0.015f, 0.985f};
+		} else if(material.contentEquals("calcium50mg") || material.contentEquals("gammexcalcium50mgml")){
+			// 5% calcium 95% water solution. calcium is equivalent to 0.8149Water and 0.0615Iodine
+			return new float[] {0.05f*calciumCoeff[0], 0.95f+(0.05f*calciumCoeff[1])};
+		} else if(material.contentEquals("calcium100mg") || material.contentEquals("gammexcalcium100mgml")){
+			return new float[] {0.1f*calciumCoeff[0], 0.9f+(0.1f*calciumCoeff[1])};
+		} else if(material.contentEquals("calcium300mg") || material.contentEquals("gammexcalcium300mgml")){
+			return new float[] {0.3f*calciumCoeff[0], 0.7f+(0.3f*calciumCoeff[1])};			
 		} else {
 			System.err.println("unknown material " + material);
 			System.exit(0);
-			return 0;
+			return null;
 		}
 	}
 
 	/**
-	 * express a material of linear combination of iodine and water
+	 * express a material of linear combination of iodine and water based on its attenuation
 	 * @param pixelValue 	denoting the pathlengths of a material
 	 * @param materialName	As listed in materialsDB
-	 * @return				A weigthing for iodine and water to archieve the same Zeff
+	 * @return				{iodine, water} pathlengths for iodine and water to archieve the same Zeff
 	 */
 	public static float[] MaterialBasisTransform(float pixelValue, String materialName) {
-		float percentIodine = 0, percentWater = 1;
-		if(materialName.contains("iod") || materialName.contains("calcium")) {
-			percentIodine = decodeIodineConcentrationFromName(materialName);
-			//percentIodine = 1; // overriding that for now. change later!! TODO
-			percentWater = 1 - percentIodine;
-		} 
-		return new float[] {percentIodine*pixelValue, percentWater*pixelValue};
+		float[] coeffs = new float[2];
+		coeffs = decodeIodineConcentrationFromName(materialName);
+		return new float[] {coeffs[0]*pixelValue, coeffs[1]*pixelValue};
 	}
 	
 	/**
@@ -379,14 +433,37 @@ class phantom_creator {
 	 * @param materialName	As listed in materialsDB
 	 * @return				A weigthing for iodine and water to archieve the same Zeff
 	 */
-	public static float[] MaterialBasisTransform(float pixelValue, Material m) {
+	public static void plotRelevantAttenuationCurves() {
+		// using our absorption model to get material characteristica in our used energy range
+		PolychromaticAbsorptionModel mo = spectrum_creator.configureAbsorbtionModel(projType.POLY80);
+		double[] energies = mo.getInputSpectrum().getPhotonEnergies();
+
+		// get all relevant materials and display them.. can be exported that way
 		Material w = MaterialsDB.getMaterial("water");
 		Material iod = MaterialsDB.getMaterial("iodine");
-		PolychromaticAbsorptionModel mo = spectrum_creator.configureAbsorbtionModel(projType.POLY80);
-		double[] att = mo.getAttenuationCoefficients(m);
-		Plot attenuationCurve = VisualizationUtil.createPlot(m.getName(), att);
+		Material cal = MaterialsDB.getMaterial("calcium");
+		
+		// get the energy dependant linear attenuation coefficient curves [1/cm]
+		double[] waterAtt = mo.getAttenuationCoefficients(w);
+		double[] iodAtt = mo.getAttenuationCoefficients(iod);
+		double[] calAtt = mo.getAttenuationCoefficients(cal);
+		
+		// get the mass attenuation curves [g/cm^2]
+		double[] waterMA = new double[energies.length], caMA = new double[energies.length], IMA = new double[energies.length];
+		for (int i = 0; i < energies.length; i++) {
+			waterMA[i] = w.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/w.getDensity();
+			IMA[i] = iod.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/iod.getDensity();
+			caMA[i] = cal.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/cal.getDensity();
+		}
+		Plot attenuationCurve = VisualizationUtil.createPlot(energies, waterMA, "water iodine and calcium mass attenuation in [g/cm3]",
+				"photon energies in [kV]", "mass attenuation in [g/cm3]");
+		attenuationCurve.add("line", energies, IMA);
+		attenuationCurve.add("line", energies, caMA);
+//		attenuationCurve.add("line", energies, waterAtt);
+//		attenuationCurve.add("line", energies, iodAtt);
+//		attenuationCurve.add("line", energies, calAtt);
+
 		attenuationCurve.show();
-		return null;
 	}
 }
 

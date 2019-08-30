@@ -5,7 +5,7 @@
    <double>1.027</double>
   </void>
   <void property="name">
-   <string>iodine5mg</string>
+   <string>iodine2mg</string>
   </void>
   <void property="weightedAtomicComposition">
    <object class="edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition" id="WeightedAtomicComposition0">
