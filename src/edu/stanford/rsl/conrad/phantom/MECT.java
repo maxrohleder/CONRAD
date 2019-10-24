@@ -113,6 +113,7 @@ public class MECT extends AnalyticPhantom{
 	public MECT(Map<Integer, String> rods) {
 		PhysicalObject MECT = new PhysicalObject();
 		MECT.setMaterial(MaterialsDB.getMaterial("water"));
+		
 		// create main ellipsiod object with dims 400x300x165 mm
 		Cylinder mainCylinder;
 		if(rods.size() == 16) {
@@ -128,7 +129,9 @@ public class MECT extends AnalyticPhantom{
 		
 		// set all rods configured in constructor parameter
 		for(int key : rods.keySet()) {
-			setRodMaterial(key, rods.get(key));
+			if(!setRodMaterial(key, rods.get(key))) {
+				System.out.println("ERROR adding a rod. Material " + rods.get(key) + " might not exist in MaterialsDB?");
+			}
 		}
 	}
 	

@@ -132,7 +132,7 @@ class phantom_creator {
 	public static AnalyticPhantom createRandomPhantom(int x_bound, int y_bound, int z_bound) {
 		// asserts all materials exist in database
 		putCustomMaterials();
-		return new RandomPhantom(x_bound, y_bound, z_bound);
+		return new RandomPhantom(x_bound, y_bound, z_bound, true);
 	}
 	
 	// creates new random phantom in bounds given
@@ -140,6 +140,14 @@ class phantom_creator {
 		// TODO Add capability of creating random geometries
 		//Map<Integer, String> rodConfiguration = getBoneConfig();
 		Map<Integer, String> rodConfiguration = getComparisonConfig();
+		return new MECT(rodConfiguration);
+	}
+	
+	// creates new random phantom in bounds given
+	public static AnalyticPhantom getIodineOnlyMECTPhantom() {
+		// TODO Add capability of creating random geometries
+		//Map<Integer, String> rodConfiguration = getBoneConfig();
+		Map<Integer, String> rodConfiguration = getIodineOnlyConfig();
 		return new MECT(rodConfiguration);
 	}
 
@@ -168,6 +176,21 @@ class phantom_creator {
 		conf.put(25, "gammexiod15mgml");
 		conf.put(26, "water");
 		conf.put(27, "solidwater");
+		conf.put(1, "water");
+		conf.put(2, "water");
+		return conf;
+	}
+	
+	private static Map<Integer, String> getIodineOnlyConfig() {
+		Map<Integer, String> conf = new HashMap<Integer, String>();
+		conf.put(20, "iodine5mg");
+		conf.put(21, "gammexiod5mgml");
+		conf.put(22, "iodine10mg");
+		conf.put(23, "gammexiod10mgml");
+		conf.put(24, "iodine15mg");
+		conf.put(25, "gammexiod15mgml");
+		conf.put(26, "iodine2mg");
+		conf.put(27, "gammexiod2mgml");
 		conf.put(1, "water");
 		conf.put(2, "water");
 		return conf;

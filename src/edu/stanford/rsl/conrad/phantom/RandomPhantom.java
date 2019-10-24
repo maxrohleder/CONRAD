@@ -25,17 +25,18 @@ import edu.stanford.rsl.conrad.physics.materials.database.MaterialsDB;
  * 
  * This Class models random geometries composed of a set of materials.
  * These Geometries are made from simple objects defined at @see edu.stanford.rsl.conrad.geometry.shapes.simple
- * It can be used to generate training data for learning based material decomposition. 
+ * It can be used to generate training data for learning-based material decomposition. 
  * @see MR.DataGenerator
  */
 public class RandomPhantom extends AnalyticPhantom{
 
-	/**
-	 * 
-	 */
+	// needed by base class
 	private static final long serialVersionUID = 250819L;
+	// available shapes
 	static final List<String> shapes = List.of("Cylinder", "Box", "Sphere", "Cone", "Ellipsoid", "Pyramide");
-	private static final List<String> ConfiguredMaterials = List.of(	"calcium50mg",
+	// configured materials
+	private static final List<String> ConfiguredMaterials = List.of(	
+													"calcium50mg",
 													"calcium100mg",
 													"calcium300mg",
 													"gammexcalcium50mgml",
@@ -49,7 +50,21 @@ public class RandomPhantom extends AnalyticPhantom{
 													"gammexiod5mgml",
 													"gammexiod10mgml",
 													"gammexiod15mgml", 
-													"solidwater");
+													"solidwater"
+													);
+	
+	private static final List<String> iodineOnlyMaterials = List.of(	
+													"iodine2mg",
+													"iodine5mg",
+													"iodine10mg",
+													"iodine15mg",
+													"gammexiod2mgml",
+													"gammexiod5mgml",
+													"gammexiod10mgml",
+													"gammexiod15mgml", 
+													"solidwater"
+													);
+	
 	public static List<String> getSupportedMaterials() {
 		return ConfiguredMaterials;
 	}
@@ -73,29 +88,43 @@ public class RandomPhantom extends AnalyticPhantom{
 	}
 	
 	public RandomPhantom() {
-		this(200, 200, 165);
+		this(200, 200, 165, false);
+	}
+	
+	public RandomPhantom(boolean iodineOnly) {
+		this(200, 200, 165, iodineOnly);
 	}
 
-	public RandomPhantom(int x_bound, int y_bound, int z_bound) {
+	public RandomPhantom(int x_bound, int y_bound, int z_bound, boolean iodineOnly) {
 		PhysicalObject RP = new PhysicalObject();
 		RP.setMaterial(MaterialsDB.getMaterial("solidwater"));
 		SimpleSurface s = getShape(shapes.get(rand(0, shapes.size()-1)), x_bound, y_bound, z_bound);
 		RP.setShape(s);
 		add(RP);
 		int numberOfObjects = rand(5, 10);
-		int dx = (int )(x_bound / (numberOfObjects+1));
-		int dy = (int )(y_bound / (numberOfObjects+1));
-		int dz = (int )(z_bound / (numberOfObjects+1));
+		int dx = (int)(x_bound / (numberOfObjects+1));
+		int dy = (int)(y_bound / (numberOfObjects+1));
+		int dz = (int)(z_bound / (numberOfObjects+1));
 		System.out.println("Phantom consists of:");
 		for (int i = 0; i < numberOfObjects; i++) {
-			int xi = x_bound - (i+1 * dx) + rand(-30, 30);
+			// choosing the size of the object (decreasing with amount of objects)
+			// rand() asserts that there are not always the same sized objects (not to overfit on size)
+			int xi = Math.max(x_bound - (i+1 * dx) + rand(-30, 30), 10);
 			int yi = y_bound - (i+1 * dy) + rand(-30, 30);
 			int zi = z_bound - (i+1 * dz) + rand(-30, 30);
+			// choosing the shape of the object
 			String type = shapes.get(rand(0, shapes.size()-1));
-			String mat = ConfiguredMaterials.get(rand(0, ConfiguredMaterials.size()-1));
+			// choosing the material of the object
+			String mat;
+			if(iodineOnly) {
+				mat = iodineOnlyMaterials.get(rand(0, iodineOnlyMaterials.size()-1));
+			}else {
+				mat = ConfiguredMaterials.get(rand(0, ConfiguredMaterials.size()-1));
+			}
 			PhysicalObject obj = new PhysicalObject();
 			obj.setMaterial(MaterialsDB.getMaterial(mat));
 			obj.setShape(getShape(type, xi, yi, zi));
+			//applying transform to the object to increase randomization
 			obj.applyTransform(shiftAndRotate(x_bound-xi, y_bound-yi, z_bound-zi));
 			add(obj);
 			System.out.println("\t" + type + " of material " + mat);
@@ -104,6 +133,13 @@ public class RandomPhantom extends AnalyticPhantom{
 		
 	}
 	
+	/**
+	 * applies a transform  with max xyz translation bounded by parameters ijk
+	 * @param i	- maximum x translation
+	 * @param j - maximum y translation
+	 * @param k - maximum z translation
+	 * @return translation and rotation transform
+	 */
 	private static Transform shiftAndRotate(int i, int j, int k) {
 		Translation tran = new Translation(rand(0, i), rand(0, j), rand(0, k));
 		ScaleRotate Rx = new ScaleRotate(randomRotationMatrix(0));
@@ -118,6 +154,7 @@ public class RandomPhantom extends AnalyticPhantom{
 		double c = Math.cos(angle);
 		double s = Math.sin(angle);
 		SimpleMatrix rot = new SimpleMatrix(3,3);
+		// creating 3d rotation matrices
 		if(axis == 0) {
 			rot.setElementValue(0, 0, 1);
 			rot.setElementValue(1, 1, c);

@@ -256,7 +256,7 @@ public class zeego {
 		config.setGeometry(geo);
 		config.resetRegistry();
 		config.setRegistryEntry(RegKeys.PATH_TO_CALIBRATION, "C:\\calibration");
-		config.setRegistryEntry(RegKeys.OPENCL_DEVICE_SELECTION, "GeForce GTX 1660 Ti NVIDIA Corporation");
+		config.setRegistryEntry(RegKeys.OPENCL_DEVICE_SELECTION, "GeForce GTX 1070 NVIDIA Corporation");
 		config.setRegistryEntry(RegKeys.PATH_TO_CONTROL, "C:\\control");
 		config.setRegistryEntry(RegKeys.MAX_THREADS, "10");
 		config.setRegistryEntry(RegKeys.XCAT_PATH, "E:\\phantom data\\numeric phantoms\\xcat\\NCAT2.0_PC");

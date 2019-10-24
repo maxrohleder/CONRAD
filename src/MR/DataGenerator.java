@@ -31,10 +31,10 @@ import ij.ImageJ;
 
 class DataGenerator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
-	public static String DATA_FOLDER = "/home/mr/Documents/bachelor/data/simulation";
-	public static String CONFIG_FOLDER = DATA_FOLDER + "/config";
+	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/overf_MECT_iodOnly";
+	public static String CONFIG_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/config/";
 	public static int NUMBER_OF_SAMPLES = 1;
-	private static int serial_number = 1;
+	private static int serial_number = 0;
 
 	
 	// system variables
@@ -54,12 +54,14 @@ class DataGenerator{
 			if(!root.mkdirs()) {
 				System.err.println("couldnt create root directory");
 				System.err.println(root);
+				System.exit(0);
 			}
 		}
 		if(!conf.isDirectory()) {
 			if(!conf.mkdirs()) {
 				System.err.println("couldnt create root directory");
 				System.err.println(conf);
+				System.exit(0);
 			}
 		}
 		
@@ -73,8 +75,9 @@ class DataGenerator{
 			File sample_dir = nextFolder();
 			
 			// use methods in phantom_creator to generate a new random phantom 
-//			AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
-			AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
+			//AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
+			//AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
+			AnalyticPhantom phantom = phantom_creator.getIodineOnlyMECTPhantom();
 			
 			// initialize the projector from files
 			projector p = new projector(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);
