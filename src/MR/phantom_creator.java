@@ -49,7 +49,7 @@ class phantom_creator {
 	public static void main(String args[]) {
 		putCustomMaterials();
 		
-//		plotRelevantAttenuationCurves();
+		plotRelevantAttenuationCurves();
 		
 		//		String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na", "Mg", "Fe" };
 //		double[] solidWater = 	{ 0.0841, 0.1849, 0.6697, 0.0216, 0.0013, 0.0143, 0.0000, 0.0108, 0.0005, 0.0017, 0.0110, 0.0000 };
@@ -463,25 +463,40 @@ class phantom_creator {
 
 		// get all relevant materials and display them.. can be exported that way
 		Material w = MaterialsDB.getMaterial("water");
+		Material muscle = MaterialsDB.getMaterial("muscle");
+		Material adi = MaterialsDB.getMaterial("adipose");
 		Material iod = MaterialsDB.getMaterial("iodine");
 		Material cal = MaterialsDB.getMaterial("calcium");
 		
 		// get the energy dependant linear attenuation coefficient curves [1/cm]
 		double[] waterAtt = mo.getAttenuationCoefficients(w);
+		double[] muscleAtt = mo.getAttenuationCoefficients(muscle);
+		double[] adiAtt = mo.getAttenuationCoefficients(adi);
 		double[] iodAtt = mo.getAttenuationCoefficients(iod);
 		double[] calAtt = mo.getAttenuationCoefficients(cal);
 		
 		// get the mass attenuation curves [g/cm^2]
-		double[] waterMA = new double[energies.length], caMA = new double[energies.length], IMA = new double[energies.length];
+		double[] waterMA = new double[energies.length];
+		double[] muscleMA = new double[energies.length];
+		double[] adiMA = new double[energies.length];
+		double[] caMA = new double[energies.length];
+		double[] IMA = new double[energies.length];
 		for (int i = 0; i < energies.length; i++) {
 			waterMA[i] = w.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/w.getDensity();
+			muscleMA[i] = muscle.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/muscle.getDensity();
+			adiMA[i] = adi.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/adi.getDensity();
 			IMA[i] = iod.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/iod.getDensity();
 			caMA[i] = cal.getAttenuation(energies[i], AttenuationType.TOTAL_WITH_COHERENT_ATTENUATION, AttenuationRetrievalMode.LOCAL_RETRIEVAL)/cal.getDensity();
 		}
+		
+		// plot the extracted 
 		Plot attenuationCurve = VisualizationUtil.createPlot(energies, waterMA, "water iodine and calcium mass attenuation in [g/cm3]",
 				"photon energies in [kV]", "mass attenuation in [g/cm3]");
 		attenuationCurve.add("line", energies, IMA);
 		attenuationCurve.add("line", energies, caMA);
+		attenuationCurve.add("line", energies, muscleMA);
+		attenuationCurve.add("line", energies, adiMA);
+		
 //		attenuationCurve.add("line", energies, waterAtt);
 //		attenuationCurve.add("line", energies, iodAtt);
 //		attenuationCurve.add("line", energies, calAtt);
