@@ -31,7 +31,7 @@ import ij.ImageJ;
 
 class DataGenerator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
-	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/overf_MECT_iodOnly";
+	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/highIodineMECT";
 	public static String CONFIG_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/config/";
 	public static int NUMBER_OF_SAMPLES = 1;
 	private static int serial_number = 0;
@@ -77,7 +77,7 @@ class DataGenerator{
 			// use methods in phantom_creator to generate a new random phantom 
 			//AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
 			//AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
-			AnalyticPhantom phantom = phantom_creator.getIodineOnlyMECTPhantom();
+			AnalyticPhantom phantom = phantom_creator.getHighIodineMECTPhantom();
 			
 			// initialize the projector from files
 			projector p = new projector(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);
@@ -126,7 +126,7 @@ class DataGenerator{
 				Grid3D water = new Grid3D(s[0], s[1], s[2]);
 				Grid3D iodine = new Grid3D(s[0], s[1], s[2]);
 				// map the channel information onto water and iodine parts
-				pro.split(water, iodine, data);
+				pro.split(water, iodine, data, true);
 				File waterFolder = new File(folder, "water");
 				File iodineFolder = new File(folder, "iodine");
 				if(waterFolder.mkdirs()) saveSample(water, waterFolder, pro, p);

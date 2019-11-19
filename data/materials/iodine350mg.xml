@@ -2,10 +2,10 @@
 <java version="11.0.5" class="java.beans.XMLDecoder">
  <object class="edu.stanford.rsl.conrad.physics.materials.Material">
   <void property="density">
-   <double>1.034</double>
+   <double>2.8339999999999996</double>
   </void>
   <void property="name">
-   <string>iodine10mg</string>
+   <string>iodine350mg</string>
   </void>
   <void property="weightedAtomicComposition">
    <object class="edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition" id="WeightedAtomicComposition0">

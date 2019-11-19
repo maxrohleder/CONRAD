@@ -2,25 +2,33 @@
 <java version="11.0.5" class="java.beans.XMLDecoder">
  <object class="edu.stanford.rsl.conrad.physics.materials.Material">
   <void property="density">
-   <double>1.034</double>
+   <double>1.399</double>
   </void>
   <void property="name">
-   <string>iodine10mg</string>
+   <string>ultavistMax370</string>
   </void>
   <void property="weightedAtomicComposition">
    <object class="edu.stanford.rsl.conrad.physics.materials.utils.WeightedAtomicComposition" id="WeightedAtomicComposition0">
     <void property="compositionTable">
      <void method="put">
+      <string>C</string>
+      <double>216.18</double>
+     </void>
+     <void method="put">
       <string>H</string>
-      <double>1.3103220000000002</double>
+      <double>24.19056</double>
      </void>
      <void method="put">
       <string>I</string>
-      <double>44.4165645</double>
+      <double>380.71341</double>
+     </void>
+     <void method="put">
+      <string>N</string>
+      <double>42.03</double>
      </void>
      <void method="put">
       <string>O</string>
-      <double>10.4</double>
+      <double>128.0</double>
      </void>
     </void>
    </object>

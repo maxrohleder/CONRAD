@@ -141,8 +141,9 @@ class projector{
 		Semaphore writeControl;
 		int[] cnums;
 		int[] s;
+		boolean map;
 
-		public ParrallelSplittingThread(Grid3D in, Grid3D water, Grid3D iodine, int[] channels, String matName, Semaphore write) {
+		public ParrallelSplittingThread(Grid3D in, Grid3D water, Grid3D iodine, int[] channels, String matName, Semaphore write, boolean mapToIodine) {
 			this.data = in;
 			this.s = in.getSize();
 			this.w = water;
@@ -150,6 +151,7 @@ class projector{
 			this.materialName = matName; // only for identification of thread
 			this.writeControl = write;
 			this.cnums = channels;
+			this.map = mapToIodine;
 		}
 		
 		@Override
@@ -167,7 +169,7 @@ class projector{
 					for (int i = 0; i < this.s[0]; i++) {
 						for (int j = 0; j < this.s[1]; j++) {
 							// represent material as iodine and water based on their attenuation behavior
-							float[] bases = phantom_creator.MaterialBasisTransform(channelc.getAtIndex(i, j), material);
+							float[] bases = phantom_creator.MaterialBasisTransform(channelc.getAtIndex(i, j), material, this.map);
 							if(bases[0] != 0 || bases[1] != 0) {
 								try {
 									this.writeControl.acquire();
@@ -297,7 +299,7 @@ class projector{
 	}
 	
 
-	public void split(Grid3D water, Grid3D iodine, Grid3D data) {
+	public void split(Grid3D water, Grid3D iodine, Grid3D data, boolean map) {
 		System.out.println("splitting the material images in parrallel");
 		// split the work into numThreads pieces
 		int numChannels = ((MultiChannelGrid2D) data.getSubGrid(0)).getNumberOfChannels();
@@ -319,7 +321,7 @@ class projector{
 				}
 				channelsToWorkOn = ctwo.stream().mapToInt(Integer::intValue).toArray();
 			}
-			workloadPartitions[j] = new ParrallelSplittingThread(data, water, iodine, channelsToWorkOn, matString, writeCtl);
+			workloadPartitions[j] = new ParrallelSplittingThread(data, water, iodine, channelsToWorkOn, matString, writeCtl, map);
 		}
 		ParallelThreadExecutor workdistributor = new ParallelThreadExecutor(workloadPartitions);
 		
@@ -332,8 +334,6 @@ class projector{
 		}
 	}
 	
-	
-
 	/**
 	 * helper class to inspect current state of Configuration
 	 */
