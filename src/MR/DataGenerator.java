@@ -31,10 +31,10 @@ import ij.ImageJ;
 
 class DataGenerator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
-	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/highIodineMECT";
+	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/HIRanGeo";
 	public static String CONFIG_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/config/";
-	public static int NUMBER_OF_SAMPLES = 1;
-	private static int serial_number = 0;
+	public static int NUMBER_OF_SAMPLES = 10;
+	private static int serial_number = 10;
 
 	
 	// system variables
@@ -75,9 +75,9 @@ class DataGenerator{
 			File sample_dir = nextFolder();
 			
 			// use methods in phantom_creator to generate a new random phantom 
-			//AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
+			AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
 			//AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
-			AnalyticPhantom phantom = phantom_creator.getHighIodineMECTPhantom();
+			//AnalyticPhantom phantom = phantom_creator.getHighIodineMECTPhantom();
 			
 			// initialize the projector from files
 			projector p = new projector(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);

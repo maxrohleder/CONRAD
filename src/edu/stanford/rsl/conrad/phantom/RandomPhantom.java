@@ -65,6 +65,20 @@ public class RandomPhantom extends AnalyticPhantom{
 													"solidwater"
 													);
 	
+	private static final List<String> highIodines = List.of(	
+			"iodine5mg",
+			"iodine10mg",
+			"iodine17mg",
+			"iodine35mg",
+			"iodine43mg",
+			"iodine87mg",
+			"iodine175mg",
+			"iodine262mg",
+			"iodine350mg",
+			"water"
+			);
+	
+	
 	public static List<String> getSupportedMaterials() {
 		return ConfiguredMaterials;
 	}
@@ -101,23 +115,23 @@ public class RandomPhantom extends AnalyticPhantom{
 		SimpleSurface s = getShape(shapes.get(rand(0, shapes.size()-1)), x_bound, y_bound, z_bound);
 		RP.setShape(s);
 		add(RP);
-		int numberOfObjects = rand(5, 10);
-		int dx = (int)(x_bound / (numberOfObjects+1));
-		int dy = (int)(y_bound / (numberOfObjects+1));
-		int dz = (int)(z_bound / (numberOfObjects+1));
+		int numberOfObjects = rand(3, 8);
+		int dx = (int)(x_bound / (numberOfObjects * 2));
+		int dy = (int)(y_bound / (numberOfObjects * 2));
+		int dz = (int)(z_bound / (numberOfObjects * 2));
 		System.out.println("Phantom consists of:");
 		for (int i = 0; i < numberOfObjects; i++) {
 			// choosing the size of the object (decreasing with amount of objects)
 			// rand() asserts that there are not always the same sized objects (not to overfit on size)
-			int xi = Math.max(x_bound - (i+1 * dx) + rand(-30, 30), 10);
-			int yi = y_bound - (i+1 * dy) + rand(-30, 30);
-			int zi = z_bound - (i+1 * dz) + rand(-30, 30);
+			int xi = Math.min(Math.max(x_bound/2 - (i+1 * dx) + rand(-50, 50), 10), x_bound);
+			int yi = Math.min(Math.max(y_bound/2 - (i+1 * dy) + rand(-50, 50), 10), y_bound);
+			int zi = Math.min(Math.max(z_bound/2 - (i+1 * dz) + rand(-50, 50), 10), z_bound);
 			// choosing the shape of the object
 			String type = shapes.get(rand(0, shapes.size()-1));
 			// choosing the material of the object
 			String mat;
 			if(iodineOnly) {
-				mat = iodineOnlyMaterials.get(rand(0, iodineOnlyMaterials.size()-1));
+				mat = highIodines.get(rand(0, iodineOnlyMaterials.size()-1));
 			}else {
 				mat = ConfiguredMaterials.get(rand(0, ConfiguredMaterials.size()-1));
 			}
