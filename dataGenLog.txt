@@ -1,0 +1,31 @@
+configured detector mat
+configured simple detector POLY80
+configured simple detector POLY120
+
+STARTING GENERATION OF 1 SAMPLES
+
+Phantom consists of:
+	Cone of material iodine35mg
+	Box of material iodine5mg
+	Cylinder of material iodine87mg
+	Cone of material iodine175mg
+
+rendering RandomPhantom
+..................................................done
+rendering material projections took 35 seconds
+
+splitting the material images in parrallel
+.....done
+splitting and saving material projections took 31 seconds
+
+filtering process for POLY80
+filtering 200 projections with 10 workers
+..................................................done
+filtering low energy image took 240 seconds
+
+filtering process for POLY120
+filtering 200 projections with 10 workers
+..................................................done
+filtering high energy image took 237 seconds
+
+GENERATED 1 SAMPLES

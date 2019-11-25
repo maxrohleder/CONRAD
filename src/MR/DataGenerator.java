@@ -11,7 +11,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
 import org.hamcrest.core.IsInstanceOf;
 
 import IceInternal.Time;
@@ -31,10 +30,10 @@ import ij.ImageJ;
 
 class DataGenerator{
 	// ADAPT THESE FIELDS TO YOUR SYSTEM. (for details read the readme)
-	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/HIRanGeo";
+	public static String DATA_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/runtimetest";
 	public static String CONFIG_FOLDER = "/home/cip/medtech2016/eh59uqiv/data/data/simulation/config/";
-	public static int NUMBER_OF_SAMPLES = 10;
-	private static int serial_number = 10;
+	public static int NUMBER_OF_SAMPLES = 1;
+	private static int serial_number = 0;
 
 	
 	// system variables
@@ -78,20 +77,41 @@ class DataGenerator{
 			AnalyticPhantom phantom = phantom_creator.createRandomPhantom(200, 200, 165);
 			//AnalyticPhantom phantom = phantom_creator.getEvaluationPhantom();
 			//AnalyticPhantom phantom = phantom_creator.getHighIodineMECTPhantom();
-			
 			// initialize the projector from files
 			projector p = new projector(CONFIG_FOLDER, MatConf, Pol80Conf, Pol120Conf);
-			
+	
+			long start = System.nanoTime();
 			// create and save material path length projections
-			mat = p.computeMaterialGrids(phantom);
+			mat = p.computeMaterialGrids(phantom);	
+			
+			// logging runtime
+			long end = System.nanoTime();			
+			try {TimeUnit.SECONDS.sleep(1);} catch (InterruptedException e) {e.printStackTrace();}
+			System.out.println("\nrendering material projections took " + ((end-start)/1000000000) + " seconds\n");
+			
+			start = System.nanoTime();
 			saveSample(mat, sample_dir, p, projType.MATERIAL);
+			end = System.nanoTime();
+			try {TimeUnit.SECONDS.sleep(1);} catch (InterruptedException e) {e.printStackTrace();}
+			System.out.println("splitting and saving material projections took " + ((end-start)/1000000000) + " seconds\n");
+
 			
 			// lower energy projections
+			start = System.nanoTime();
 			lowerEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY80);
+			end = System.nanoTime();
+			try {TimeUnit.SECONDS.sleep(1);} catch (InterruptedException e) {e.printStackTrace();}
+			System.out.println("filtering low energy image took " + ((end-start)/1000000000) + " seconds\n");
+			
 			saveSample(lowerEnergy, sample_dir, p, projType.POLY80);
 
 			// lower energy projections
+			start = System.nanoTime();
 			higherEnergy = p.getPolchromaticImageFromMaterialGrid(mat, projType.POLY120);
+			end = System.nanoTime();
+			try {TimeUnit.SECONDS.sleep(1);} catch (InterruptedException e) {e.printStackTrace();}
+			System.out.println("filtering high energy image took " + ((end-start)/1000000000) + " seconds\n");
+			
 			saveSample(higherEnergy, sample_dir, p, projType.POLY120);
 			}
 		System.out.println("GENERATED " + NUMBER_OF_SAMPLES + " SAMPLES");

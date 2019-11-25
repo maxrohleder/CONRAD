@@ -98,8 +98,7 @@ class projector{
 	class ParrallelFilteringThread extends SimpleParallelThread{
 		int maxThreads;
 		Grid3D input;
-		Grid3D output;
-		
+		Grid3D output;		
 
 		public ParrallelFilteringThread(int threadNum, int maxThreads, Grid3D in, Grid3D out) {
 			super(threadNum);
@@ -282,6 +281,7 @@ class projector{
 		// split the work into numThreads pieces
 		int numWorkers = CONRAD.getNumberOfThreads();
 		ParallelizableRunnable [] workloadPartitions = new ParallelizableRunnable[numWorkers];
+		if(cnfg.DEBUG) System.out.println("filtering 200 projections with " + numWorkers + " workers");
 		for (int j= 0; j<numWorkers; j++) {
 			workloadPartitions[j]= new ParrallelFilteringThread(j, numWorkers, materialProjections, attenuationBasedProjections);
 		}

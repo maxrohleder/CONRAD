@@ -47,8 +47,9 @@ import ij.gui.Plot;
 class phantom_creator {
 
 	public static void main(String args[]) {
-		putCustomMaterials();
-
+		//putCustomMaterials();
+		MaterialsDB.removeMaterial("ultravistmax370");
+		System.out.println("done");
 		// plotRelevantAttenuationCurves();
 
 		// String[] elements = { "H", "O", "C", "N", "Cl", "Ca", "I", "Si", "B", "Na",
